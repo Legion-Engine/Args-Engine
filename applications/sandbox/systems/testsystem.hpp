@@ -120,6 +120,7 @@ public:
     rendering::material_handle paintH;
     rendering::material_handle skyboxH;
     rendering::material_handle gnomeMH;
+    rendering::material_handle defaultMH;
 
     //Friction Test
     std::vector<ecs::entity_handle> physicsFrictionTestRotators;
@@ -221,6 +222,7 @@ public:
         rendering::model_handle axesH;
         rendering::model_handle submeshtestH;
         rendering::model_handle planeH;
+        rendering::model_handle terrainH;
         //rendering::model_handle cylinderH;
 
         rendering::material_handle wireframeH;
@@ -257,6 +259,7 @@ public:
             axesH = rendering::ModelCache::create_model("axes", "assets://models/xyz.obj"_view);
             submeshtestH = rendering::ModelCache::create_model("submeshtest", "assets://models/submeshtest.obj"_view);
             planeH = rendering::ModelCache::create_model("plane", "assets://models/plane.obj"_view);
+            terrainH = rendering::ModelCache::create_model("terrain", "assets://models/terrain.obj"_view);
             //cylinderH = rendering::ModelCache::create_model("cylinder","assets://models/cylinder.obj"_view);
 
             wireframeH = rendering::MaterialCache::create_material("wireframe", "assets://shaders/wireframe.shs"_view);
@@ -288,6 +291,15 @@ public:
             pbrH.set_param(SV_HEIGHTSCALE, 1.f);
             pbrH.set_param("discardExcess", false);
             pbrH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
+
+            defaultMH = rendering::MaterialCache::create_material("default", pbrShader);
+            defaultMH.set_param(SV_ALBEDO, rendering::TextureCache::create_texture("engine://resources/default/default_albedo.png"_view));
+            defaultMH.set_param(SV_NORMALHEIGHT, rendering::TextureCache::create_texture("engine://resources/default/default_normalheight.png"_view));
+            defaultMH.set_param(SV_MRDAO, rendering::TextureCache::create_texture("engine://resources/default/default_mrdao.png"_view));
+            defaultMH.set_param(SV_EMISSIVE, rendering::TextureCache::create_texture("engine://resources/default/default_emission.png"_view));
+            defaultMH.set_param(SV_HEIGHTSCALE, 0.f);
+            defaultMH.set_param("discardExcess", false);
+            defaultMH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
 
             copperH = rendering::MaterialCache::create_material("copper", pbrShader);
             copperH.set_param("material_input.albedo", rendering::TextureCache::create_texture("assets://textures/copper/copper-albedo-512.png"_view));
@@ -437,6 +449,12 @@ public:
             auto ent = createEntity();
             ent.add_components<rendering::mesh_renderable>(mesh_filter(planeH.get_mesh()), rendering::mesh_renderer(rockH));
             ent.add_components<transform>(position(0, 0.01f, -10), rotation(), scale(10));
+        }
+
+        {
+            auto ent = createEntity();
+            ent.add_components<rendering::mesh_renderable>(mesh_filter(terrainH.get_mesh()), rendering::mesh_renderer(defaultMH));
+            ent.add_components<transform>(position(0, 0, -60), rotation(), scale());
         }
 
         {
@@ -1701,6 +1719,7 @@ public:
                     sun.destroy();
 
                 pbrH.set_param("skycolor", math::color(0.0001f, 0.0005f, 0.0025f));
+                defaultMH.set_param("skycolor", math::color(0.0001f, 0.0005f, 0.0025f));
                 copperH.set_param("skycolor", math::color(0.0001f, 0.0005f, 0.0025f));
                 aluminumH.set_param("skycolor", math::color(0.0001f, 0.0005f, 0.0025f));
                 ironH.set_param("skycolor", math::color(0.0001f, 0.0005f, 0.0025f));
@@ -1723,6 +1742,7 @@ public:
                 }
 
                 pbrH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
+                defaultMH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
                 copperH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
                 aluminumH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
                 ironH.set_param("skycolor", math::color(0.1f, 0.3f, 1.0f));
