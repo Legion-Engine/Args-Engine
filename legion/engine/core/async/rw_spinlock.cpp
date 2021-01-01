@@ -17,10 +17,10 @@ namespace legion::core::async
         if (m_forceRelease)
             return;
 
-        if (m_localState[m_id] != lock_state::idle) // If we're either already reading or writing then the lock doesn't need to be reacquired.
+        if (m_localState.at(m_id) != lock_state::idle) // If we're either already reading or writing then the lock doesn't need to be reacquired.
         {
             // Report another local reader to the lock.
-            m_localReaders[m_id]++;
+            m_localReaders.at(m_id)++;
             return;
         }
 
@@ -31,13 +31,7 @@ namespace legion::core::async
             // Read the current value and continue waiting until we're in a lockable state.
             while ((state = m_lockState.load(std::memory_order_relaxed)) == (int)lock_state::write)
             {
-                OPTICK_CATEGORY("Acquire read lock", Optick::Category::Wait);
-                OPTICK_TAG("state", state);
-                std::stringstream stream;
-                stream << std::hex << m_writer;
-                std::string writer;
-                stream >> writer;
-                OPTICK_TAG("writer", writer.c_str());
+                OPTICK_EVENT("Acquire read lock");
 
                 switch (priority)
                 {
@@ -60,8 +54,8 @@ namespace legion::core::async
         }
 
         // Report another reader to the lock.
-        m_localReaders[m_id]++;
-        m_localState[m_id] = lock_state::read; // Set thread_local state to read.
+        m_localReaders.at(m_id)++;
+        m_localState.at(m_id) = lock_state::read; // Set thread_local state to read.
     }
 
     bool rw_spinlock::read_try_lock() const
@@ -70,10 +64,10 @@ namespace legion::core::async
         if (m_forceRelease)
             return true;
 
-        if (m_localState[m_id] != lock_state::idle) // If we're either already reading or writing then the lock doesn't need to be reacquired.
+        if (m_localState.at(m_id) != lock_state::idle) // If we're either already reading or writing then the lock doesn't need to be reacquired.
         {
             // Report another local reader to the lock.
-            m_localReaders[m_id]++;
+            m_localReaders.at(m_id)++;
             return true;
         }
 
@@ -85,8 +79,8 @@ namespace legion::core::async
             return false;
 
         // Report another reader to the lock.
-        m_localReaders[m_id]++;
-        m_localState[m_id] = lock_state::read; // Set thread_local state to read.
+        m_localReaders.at(m_id)++;
+        m_localState.at(m_id) = lock_state::read; // Set thread_local state to read.
         return true;
     }
 
@@ -96,14 +90,14 @@ namespace legion::core::async
         if (m_forceRelease)
             return;
 
-        if (m_localState[m_id] == lock_state::read) // If we're currently only acquired for read we need to stop reading before requesting rw.
+        if (m_localState.at(m_id) == lock_state::read) // If we're currently only acquired for read we need to stop reading before requesting rw.
         {
             read_unlock();
-            m_localReaders[m_id]++;
+            m_localReaders.at(m_id)++;
         }
-        else if (m_localState[m_id] == lock_state::write) // If we're already writing then we don't need to reacquire the lock.
+        else if (m_localState.at(m_id) == lock_state::write) // If we're already writing then we don't need to reacquire the lock.
         {
-            m_localWriters[m_id]++;
+            m_localWriters.at(m_id)++;
             return;
         }
 
@@ -114,13 +108,7 @@ namespace legion::core::async
             // Read the current value and continue waiting until we're in a lockable state.
             while ((state = m_lockState.load(std::memory_order_relaxed)) != (int)lock_state::idle)
             {
-                OPTICK_CATEGORY("Acquire write lock", Optick::Category::Wait);
-                OPTICK_TAG("state", state);
-                std::stringstream stream;
-                stream << std::hex << m_writer;
-                std::string writer;
-                stream >> writer;
-                OPTICK_TAG("writer", writer.c_str());
+                OPTICK_EVENT("Acquire write lock");
 
                 switch (priority)
                 {
@@ -144,8 +132,8 @@ namespace legion::core::async
 
 
         m_writer = std::this_thread::get_id();
-        m_localWriters[m_id]++;
-        m_localState[m_id] = lock_state::write; // Set thread_local state to write.
+        m_localWriters.at(m_id)++;
+        m_localState.at(m_id) = lock_state::write; // Set thread_local state to write.
     }
 
     bool rw_spinlock::write_try_lock() const
@@ -155,15 +143,15 @@ namespace legion::core::async
             return true;
 
         bool relock = false;
-        if (m_localState[m_id] == lock_state::read) // If we're currently only acquired for read we need to stop reading before requesting rw.
+        if (m_localState.at(m_id) == lock_state::read) // If we're currently only acquired for read we need to stop reading before requesting rw.
         {
             relock = true;
             read_unlock();
-            m_localReaders[m_id]++;
+            m_localReaders.at(m_id)++;
         }
-        else if (m_localState[m_id] == lock_state::write) // If we're already writing then we don't need to reacquire the lock.
+        else if (m_localState.at(m_id) == lock_state::write) // If we're already writing then we don't need to reacquire the lock.
         {
-            m_localWriters[m_id]++;
+            m_localWriters.at(m_id)++;
             return true;
         }
 
@@ -175,15 +163,15 @@ namespace legion::core::async
         {
             if (relock)
             {
-                m_localReaders[m_id]--;
+                m_localReaders.at(m_id)--;
                 read_lock();
             }
             return false;
         }
 
         m_writer = std::this_thread::get_id();
-        m_localWriters[m_id]++;
-        m_localState[m_id] = lock_state::write; // Set thread_local state to write.
+        m_localWriters.at(m_id)++;
+        m_localState.at(m_id) = lock_state::write; // Set thread_local state to write.
         return true;
     }
 
@@ -193,16 +181,17 @@ namespace legion::core::async
         if (m_forceRelease)
             return;
 
-        m_localReaders[m_id]--;
+        auto& localReaders = m_localReaders.at(m_id);
+        localReaders--;
 
-        if (m_localReaders[m_id] > 0 || m_localWriters[m_id] > 0) // Another local guard is still alive that will unlock the lock for this thread.
+        if (localReaders > 0 || m_localWriters.at(m_id) > 0) // Another local guard is still alive that will unlock the lock for this thread.
         {
             return;
         }
 
         m_lockState.fetch_sub((int)lock_state::read, std::memory_order_release);
 
-        m_localState[m_id] = lock_state::idle; // Set thread_local state to idle.
+        m_localState.at(m_id) = lock_state::idle; // Set thread_local state to idle.
     }
 
     void rw_spinlock::write_unlock() const
@@ -211,21 +200,22 @@ namespace legion::core::async
         if (m_forceRelease)
             return;
 
-        m_localWriters[m_id]--;
+        auto& localWriters = m_localWriters.at(m_id);
+        localWriters--;
 
-        if (m_localWriters[m_id] > 0) // Another local guard is still alive that will unlock the lock for this thread.
+        if (localWriters > 0) // Another local guard is still alive that will unlock the lock for this thread.
         {
             return;
         }
-        else if (m_localReaders[m_id] > 0)
+        else if (m_localReaders.at(m_id) > 0)
         {
             m_lockState.store((int)lock_state::read, std::memory_order_release);
-            m_localState[m_id] = lock_state::read; // Set thread_local state to idle.
+            m_localState.at(m_id) = lock_state::read; // Set thread_local state to idle.
             return;
         }
 
         m_lockState.store((int)lock_state::idle, std::memory_order_release);
-        m_localState[m_id] = lock_state::idle; // Set thread_local state to idle.
+        m_localState.at(m_id) = lock_state::idle; // Set thread_local state to idle.
     }
 
     void rw_spinlock::force_release(bool release)
@@ -254,8 +244,16 @@ namespace legion::core::async
 
     void rw_spinlock::lock(lock_state permissionLevel, lock_priority priority) const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return;
+
+        if (!m_localState.count(m_id))
+        {
+            m_localWriters.emplace(m_id, 0);
+            m_localReaders.emplace(m_id, 0);
+            m_localState.emplace(m_id, lock_state_idle);
+        }
 
         switch (permissionLevel)
         {
@@ -270,8 +268,16 @@ namespace legion::core::async
 
     bool rw_spinlock::try_lock(lock_state permissionLevel) const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return true;
+
+        if (!m_localState.count(m_id))
+        {
+            m_localWriters.emplace(m_id, 0);
+            m_localReaders.emplace(m_id, 0);
+            m_localState.emplace(m_id, lock_state_idle);
+        }
 
         switch (permissionLevel)
         {
@@ -286,6 +292,7 @@ namespace legion::core::async
 
     void rw_spinlock::unlock(lock_state permissionLevel) const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return;
 
@@ -302,6 +309,7 @@ namespace legion::core::async
 
     void rw_spinlock::lock_shared() const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return;
 
@@ -310,6 +318,7 @@ namespace legion::core::async
 
     bool rw_spinlock::try_lock_shared() const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return true;
 
@@ -318,6 +327,7 @@ namespace legion::core::async
 
     void rw_spinlock::unlock_shared() const
     {
+        OPTICK_EVENT();
         if (m_forceRelease)
             return;
 
