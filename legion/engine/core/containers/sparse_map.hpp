@@ -495,9 +495,6 @@ namespace legion::core
         inline value_reference get(key_type&& key)
         {
             OPTICK_EVENT();
-            if (!contains(key))
-                throw std::out_of_range("Sparse map does not contain this key.");
-
             return m_dense_value[m_sparse[key]];
         }
 
@@ -507,9 +504,6 @@ namespace legion::core
         inline value_reference get(key_const_reference key)
         {
             OPTICK_EVENT();
-            if (!contains(key))
-                throw std::out_of_range("Sparse map does not contain this key.");
-
             return m_dense_value[m_sparse[key]];
         }
 
@@ -519,9 +513,6 @@ namespace legion::core
         inline value_const_reference get(key_type&& key) const
         {
             OPTICK_EVENT();
-            if (!contains(key))
-                throw std::out_of_range("Sparse map does not contain this key and is non modifiable.");
-
             return m_dense_value[m_sparse.at(key)];
         }
 
@@ -531,9 +522,6 @@ namespace legion::core
         inline value_const_reference get(key_const_reference key) const
         {
             OPTICK_EVENT();
-            if (!contains(key))
-                throw std::out_of_range("Sparse map does not contain this key and is non modifiable.");
-
             return m_dense_value[m_sparse.at(key)];
         }
 #pragma endregion

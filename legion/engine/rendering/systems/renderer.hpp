@@ -16,6 +16,8 @@ namespace legion::rendering
         static void debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
         bool initContext(const app::window& window);
 
+        void setThreadPriority();
+
     public:
         Renderer() : System<Renderer>()
         {

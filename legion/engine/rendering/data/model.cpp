@@ -430,7 +430,7 @@ namespace legion::rendering
 
         {
             auto [lock, rawmesh] = mesh.get();
-            async::mixed_multiguard guard(m_modelNameLock, async::read, lock, async::write);
+            async::mixed_multiguard guard(m_modelNameLock, async::lock_state_read, lock, async::lock_state_write);
             m_modelNames[id] = rawmesh.fileName;
         }
 

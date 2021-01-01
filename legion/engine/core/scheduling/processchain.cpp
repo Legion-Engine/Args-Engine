@@ -26,10 +26,8 @@ namespace legion::core::scheduling
                 if (chain->m_scheduler->syncRequested()) // Sync if requested.
                     chain->m_scheduler->waitForProcessSync();
 
-                if (chain->m_low_power)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                else
                 {
+                    OPTICK_CATEGORY("Relieve LSU contention", Optick::Category::Wait);
                     L_PAUSE_INSTRUCTION();
                     std::this_thread::yield();
                 }

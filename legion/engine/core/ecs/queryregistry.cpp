@@ -39,7 +39,7 @@ namespace legion::core::ecs
         // Next we need to filter through all the entities to get all the new ones that apply to the new query.
 
         auto [entities, entitiesLock] = m_registry.getEntities(); // getEntities returns a pair of both the container as well as the lock that should be locked by you when operating on it.
-        async::mixed_multiguard mguard(entitiesLock, async::read, m_componentLock, async::read, m_entityLock, async::write); // Lock locks.
+        async::mixed_multiguard mguard(entitiesLock, async::lock_state_read, m_componentLock, async::lock_state_read, m_entityLock, async::lock_state_write); // Lock locks.
 
         for (entity_handle entity : entities) // Iterate over all entities.
         {
@@ -84,7 +84,7 @@ namespace legion::core::ecs
         OPTICK_EVENT();
         entity_handle entity(entityId);
 
-        async::mixed_multiguard mmguard(m_entityLock, async::write, m_componentLock, async::read); // We lock now so that we don't need to reacquire the locks every iteration.
+        async::mixed_multiguard mmguard(m_entityLock, async::lock_state_write, m_componentLock, async::lock_state_read); // We lock now so that we don't need to reacquire the locks every iteration.
 
         for (int i = 0; i < m_entityLists.size(); i++)
         {
@@ -173,7 +173,7 @@ namespace legion::core::ecs
 
         { // Next we need to filter through all the entities to get all the new ones that apply to the new query.
             auto [entities, entitiesLock] = m_registry.getEntities(); // getEntities returns a pair of both the container as well as the lock that should be locked by you when operating on it.
-            async::mixed_multiguard mguard(entitiesLock, async::read, m_entityLock, async::write); // Lock locks.
+            async::mixed_multiguard mguard(entitiesLock, async::lock_state_read, m_entityLock, async::lock_state_write); // Lock locks.
 
             for (entity_handle entity : entities) // Iterate over all entities.
                 if (m_registry.getEntityData(entity).components.contains(componentTypes)) // Check if the queried components completely overlaps the components in the entity.

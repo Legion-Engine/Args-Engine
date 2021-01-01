@@ -3,14 +3,14 @@
 
 namespace legion::core::scheduling
 {
-    constexpr size_type reserved_threads = 4; // OS, this, OpenAL, Drivers
+    constexpr size_type reserved_threads = 1; // OS, this, OpenAL, Drivers
 
     async::rw_spinlock Scheduler::m_threadsLock;
     sparse_map<std::thread::id, std::unique_ptr<std::thread>> Scheduler::m_threads;
     std::queue<std::thread::id> Scheduler::m_unreservedThreads;
-    const uint Scheduler::m_maxThreadCount = (static_cast<int>(std::thread::hardware_concurrency()) - reserved_threads) <= 0 ? reserved_threads : std::thread::hardware_concurrency();
+    const uint Scheduler::m_maxThreadCount = (static_cast<int>(std::thread::hardware_concurrency()) - reserved_threads) <= 0 ? reserved_threads : (std::thread::hardware_concurrency());
     async::rw_spinlock Scheduler::m_availabilityLock;
-    uint Scheduler::m_availableThreads = static_cast<uint>(math::ceil((m_maxThreadCount - reserved_threads) * 0.8f) + math::epsilon<float>()); // subtract OS and this_thread, and then leave some extra for miscellaneous processes.
+    uint Scheduler::m_availableThreads = static_cast<uint>(math::ceil(((m_maxThreadCount * 0.5f) - reserved_threads)) + math::epsilon<float>()); // subtract OS and this_thread, and then leave some extra for miscellaneous processes.
 
     async::rw_spinlock Scheduler::m_jobQueueLock;
     std::queue<Scheduler::runnable> Scheduler::m_jobs;
@@ -35,7 +35,7 @@ namespace legion::core::scheduling
             Scheduler::runnable instruction{};
 
             {
-                async::readwrite_guard guard(m_commandLocks[id]);
+                async::readwrite_guard guard(m_commandLocks[id], async::lock_priority_normal);
                 if (!m_commands[id].empty())
                 {
                     instruction = m_commands[id].front();
@@ -46,32 +46,31 @@ namespace legion::core::scheduling
             instruction();
             instruction = {};
 
+            static bool empty;
             {
-                async::readwrite_guard guard(m_jobQueueLock);
-                if (!m_jobs.empty())
+                async::readwrite_guard guard(m_jobQueueLock, async::lock_priority_normal);
+                empty = m_jobs.empty();
+
+                if (!empty)
                 {
-                    log::debug("Starting work on a job.");
                     instruction = m_jobs.front();
                     m_jobs.pop();
+                    empty = m_jobs.empty();
                 }
             }
 
             instruction();
 
-            L_PAUSE_INSTRUCTION();
+            if (empty)
             {
-                async::readonly_guard guard(m_jobQueueLock);
-
-                if (m_jobs.empty())
+                OPTICK_CATEGORY("Relieve LSU contention", Optick::Category::Wait);
+                if (lowPower)
                 {
-                    if (lowPower)
-                    {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                    }
-                    else
-                    {
-                        std::this_thread::sleep_for(std::chrono::microseconds(1));
-                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                }
+                else
+                {
+                    std::this_thread::sleep_for(std::chrono::microseconds(1));
                 }
             }
         }

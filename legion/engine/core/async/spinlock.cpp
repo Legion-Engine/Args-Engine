@@ -45,6 +45,7 @@ namespace legion::core::async
 
         while (true)
         {
+            OPTICK_CATEGORY("Acquire spinlock", Optick::Category::Wait);
             if (!m_lock.exchange(true, std::memory_order_acquire))
                 break;
             while (m_lock.load(std::memory_order_relaxed))

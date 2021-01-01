@@ -130,6 +130,24 @@ namespace legion::rendering
         return true;
     }
 
+    void Renderer::setThreadPriority()
+    {
+#ifdef LEGION_WINDOWS
+        if (SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST))
+        {
+            log::info("Acquired realtime priority for rendering thread.");
+        }
+        else
+        {
+            DWORD dwError = GetLastError();
+            /*if (dwError == ERROR_THREAD_)
+                log::info("Rendering thread is already in realtime priority mode.");
+            else*/
+                log::warn("Rendering thread failed to enter realtime priority mode: {}", dwError);
+        }
+#endif // LEGION_WINDOWS
+    }
+
     void Renderer::setup()
     {
         OPTICK_EVENT();
@@ -173,6 +191,8 @@ namespace legion::rendering
 
                 if (!result)
                     log::error("Failed to initialize context.");
+                else
+                    setThreadPriority();
 
                 m_initialized.store(result, std::memory_order_release);
             }, this);

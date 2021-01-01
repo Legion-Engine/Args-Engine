@@ -16,7 +16,17 @@
 
 namespace legion::core::async
 {
-    enum lock_state { idle = 0, read = 1, write = -1 };
+    enum struct lock_state : int { idle = 0, read = 1, write = -1 };
+
+    enum struct lock_priority : int { normal, wait, real_time };
+
+    inline constexpr lock_state lock_state_idle = lock_state::idle;
+    inline constexpr lock_state lock_state_read = lock_state::read;
+    inline constexpr lock_state lock_state_write = lock_state::write;
+
+    inline constexpr lock_priority lock_priority_normal = lock_priority::normal;
+    inline constexpr lock_priority lock_priority_wait = lock_priority::wait;
+    inline constexpr lock_priority lock_priority_real_time = lock_priority::real_time;
 
     /**@class rw_spinlock
      * @brief Lock used with ::async::readonly_guard and ::async::readwrite_guard.
@@ -43,12 +53,13 @@ namespace legion::core::async
         uint m_id = m_lastId.fetch_add(1, std::memory_order_relaxed);
         // State of the lock. -1 means that a thread has write permission. 0 means that the lock is unlocked. 1+ means that there are N amount of readers.
         mutable  std::atomic_int m_lockState = { 0 };
+        mutable std::thread::id m_writer;
 
-        void read_lock() const;
+        void read_lock(lock_priority priority = lock_priority::real_time) const;
 
         bool read_try_lock() const;
 
-        void write_lock() const;
+        void write_lock(lock_priority priority = lock_priority::real_time) const;
 
         bool write_try_lock() const;
 
@@ -74,7 +85,7 @@ namespace legion::core::async
          *		 Locking for write multiple times will remain in write.
          * @param permissionLevel
          */
-        void lock(lock_state permissionLevel = lock_state::write) const;
+        void lock(lock_state permissionLevel = lock_state::write, lock_priority priority = lock_priority::real_time) const;
 
         /**@brief Try to lock for a certain permission level. If it fails it will return false otherwise true. (locking for idle does nothing)
          * @note Locking stacks, locking for readonly multiple times will remain readonly.
@@ -130,9 +141,9 @@ namespace legion::core::async
     public:
         /**@brief Creates readonly guard and locks for Read-only.
          */
-        readonly_guard(const rw_spinlock& lock) : m_lock(lock)
+        readonly_guard(const rw_spinlock& lock, lock_priority priority = lock_priority::real_time) : m_lock(lock)
         {
-            m_lock.lock(read);
+            m_lock.lock(lock_state::read, priority);
         }
 
         readonly_guard(const readonly_guard&) = delete;
@@ -141,7 +152,7 @@ namespace legion::core::async
          */
         ~readonly_guard()
         {
-            m_lock.unlock(read);
+            m_lock.unlock(lock_state::read);
         }
 
         readonly_guard& operator=(readonly_guard&&) = delete;
@@ -171,7 +182,7 @@ namespace legion::core::async
             do
             {
                 for (int i = 0; i <= lastLocked; i++) // If we failed to lock all locks we need to unlock the ones we did lock.
-                    m_locks[i]->unlock(read);
+                    m_locks[i]->unlock(lock_state::read);
 
                 // Reset variables
                 locked = true;
@@ -180,7 +191,7 @@ namespace legion::core::async
                 // Try to lock all locks.
                 for (int i = 0; i < m_locks.size(); i++)
                 {
-                    if (m_locks[i]->try_lock(read))
+                    if (m_locks[i]->try_lock(lock_state::read))
                     {
                         lastLocked = i;
                     }
@@ -200,7 +211,7 @@ namespace legion::core::async
         ~readonly_multiguard()
         {
             for (auto* lock : m_locks)
-                lock->unlock(read);
+                lock->unlock(lock_state::read);
         }
 
         readonly_multiguard& operator=(readonly_multiguard&&) = delete;
@@ -224,9 +235,9 @@ namespace legion::core::async
     public:
         /**@brief Creates read-write guard and locks for Read-Write.
          */
-        readwrite_guard(const rw_spinlock& lock) : m_lock(lock)
+        readwrite_guard(const rw_spinlock& lock, lock_priority priority = lock_priority::real_time) : m_lock(lock)
         {
-            m_lock.lock(write);
+            m_lock.lock(lock_state::write, priority);
         }
 
         readwrite_guard(const readwrite_guard&) = delete;
@@ -235,7 +246,7 @@ namespace legion::core::async
          */
         ~readwrite_guard()
         {
-            m_lock.unlock(write);
+            m_lock.unlock(lock_state::write);
         }
 
         readwrite_guard& operator=(readwrite_guard&&) = delete;
@@ -266,7 +277,7 @@ namespace legion::core::async
             do
             {
                 for (int i = 0; i <= lastLocked; i++) // If we failed to lock all locks we need to unlock the ones we did lock.
-                    m_locks[i]->unlock(write);
+                    m_locks[i]->unlock(lock_state::write);
 
                 // Reset variables
                 locked = true;
@@ -275,7 +286,7 @@ namespace legion::core::async
                 // Try to lock all locks.
                 for (int i = 0; i < m_locks.size(); i++)
                 {
-                    if (m_locks[i]->try_lock(write))
+                    if (m_locks[i]->try_lock(lock_state::write))
                     {
                         lastLocked = i;
                     }
@@ -295,7 +306,7 @@ namespace legion::core::async
         ~readwrite_multiguard()
         {
             for (auto* lock : m_locks)
-                lock->unlock(write);
+                lock->unlock(lock_state::write);
         }
 
         readwrite_multiguard& operator=(readwrite_multiguard&&) = delete;

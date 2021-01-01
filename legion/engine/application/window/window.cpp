@@ -48,6 +48,7 @@ namespace legion::application
 
     context_guard::context_guard(window win) : m_win(win)
 	{
+        OPTICK_EVENT();
 		win.lock->lock();
 
         if (!WindowSystem::windowStillExists(win.handle))

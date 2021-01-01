@@ -130,7 +130,7 @@ namespace legion::core::ecs
         {
             OPTICK_EVENT();
             if (m_components.contains(entityId))
-                return m_components[entityId];
+                return m_components.get(entityId);
             return m_nullComp;
         }
 
@@ -143,7 +143,7 @@ namespace legion::core::ecs
         {
             OPTICK_EVENT();
             if (m_components.contains(entityId))
-                return m_components[entityId];
+                return m_components.get(entityId);
             return m_nullComp;
         }
 
