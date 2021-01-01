@@ -168,7 +168,7 @@ namespace legion::rendering
             }
             else
             {
-                errorMessage = "Unknown error OpenGL context might not have been made current?";
+                errorMessage = "Unknown error, OpenGL context might not have been made current?";
             }
             cstring shaderTypename;
             switch (shaderType)

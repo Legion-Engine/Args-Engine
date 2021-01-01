@@ -22,7 +22,7 @@ jobs:
       run: premake5 --file=premake5.lua gmake
 
     - name: get dependencies
-      run: sudo apt-get update -yqq && sudo apt-get install -yqq libopenal-dev build-essential libgl1-mesa-dev libglm-dev libglfw3-dev ocl-icd-opencl-dev
+      run: sudo apt-get update -yqq && sudo apt-get install -yqq libopenal-dev build-essential libgl1-mesa-dev libglm-dev libglfw3-dev ocl-icd-opencl-dev libc++abi-dev
 
       # TODO(algo-ryth-mix): there is an error here somewhere (sometimes old stuff is used)
       # the below two steps are here to aid in finding the bugs and should be removed when ironed out

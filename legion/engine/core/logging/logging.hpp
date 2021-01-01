@@ -11,7 +11,6 @@
 #endif
 
 #include <core/platform/platform.hpp>
-#include <core/types/type_util.hpp>
 #include <thread>
 #include <core/math/math.hpp>
 #include <core/common/exception.hpp>

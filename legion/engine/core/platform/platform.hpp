@@ -86,12 +86,22 @@
 
 #if defined(__clang__)
     // clang
+#define LEGION_CLANG
+
+#if defined(__GNUG__) || (defined(__GNUC__) && defined(__cplusplus))
+#define LEGION_CLANG_GCC
+#elif defined(_MSC_VER)
+#define LEGION_CLANG_MSVC
+#endif
+
 #define L_PAUSE_INSTRUCTION __builtin_ia32_pause
 #elif defined(__GNUG__) || (defined(__GNUC__) && defined(__cplusplus))
     // gcc
+#define LEGION_GCC
 #define L_PAUSE_INSTRUCTION __builtin_ia32_pause
 #elif defined(_MSC_VER)
     // msvc
+#define LEGION_MSVC
 #define L_PAUSE_INSTRUCTION _mm_pause
 #endif
 

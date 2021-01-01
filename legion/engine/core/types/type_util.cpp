@@ -12,8 +12,7 @@ namespace legion::core
         
         for (size_type i = 0; i < length; i++)
         {
-            byte value = name[i];
-            hash = hash ^ value;
+            hash = hash ^ static_cast<const byte>(name[i]);
             hash *= prime;
         }
 

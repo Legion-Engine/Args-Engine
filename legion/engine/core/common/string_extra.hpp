@@ -5,7 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <iterator>
-#include <string>
+#include <core/types/primitives.hpp>
 #include <cstring>
 
 #include <Optick/optick.h>
@@ -14,6 +14,23 @@
  * @file string_extra.hpp
  */
 namespace legion::core::common {
+
+    inline bool ends_with(const std::string& src, cstring value)
+    {
+        auto valueLength = strlen(value);
+        if (src.size() < valueLength)
+            return false;
+
+        std::string_view srcEnd(src.data() + (src.size() - valueLength), valueLength);
+
+        for (int i = 0; i < valueLength; i++)
+        {
+            if (srcEnd[i] != value[i])
+                return false;
+        }
+
+        return true;
+    }
 
     /**@brief Replace each occurrence of [item] in [source] with [value].
      * @return Amount of items replaced.
