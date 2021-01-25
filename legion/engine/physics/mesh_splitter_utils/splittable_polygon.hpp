@@ -30,7 +30,7 @@ namespace legion::physics
 		void ResetEdgeVisited();
 		
 		void CalculatePolygonSplit(const math::mat4& transform
-			, math::vec3 planePosition, math::vec3 planeNormal);
+			, math::vec3 planePosition, math::vec3 planeNormal,bool keepBelow);
 
 		void IdentifyBoundaries(const math::mat4& transform);
 

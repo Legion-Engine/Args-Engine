@@ -57,11 +57,11 @@ namespace legion::core
         }
 
         image.format = settings.fileFormat;
-        image.m_pixels = new byte[dataSize];
-        image.m_dataSize = dataSize;
+        image.data = new byte[dataSize];
+        image.dataSize = dataSize;
         image.components = settings.components;
 
-        memmove(image.m_pixels, imageData, dataSize);
+        memmove(image.data, imageData, dataSize);
         stbi_image_free(imageData);
 
         return decay(Ok(image));

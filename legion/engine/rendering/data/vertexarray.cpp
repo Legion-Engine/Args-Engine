@@ -35,6 +35,7 @@ namespace legion::rendering
 
     void vertexarray::setAttribPointer(const buffer& buf, uint index, size_type size, GLenum type, bool normalized, size_type stride, size_type offset)
     {
+        OPTICK_EVENT();
 #if defined(LEGION_DEBUG)
         if (buf.target() != GL_ARRAY_BUFFER)
         {

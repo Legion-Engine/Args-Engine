@@ -5,6 +5,7 @@
 #include <physics/data/contact_vertex.hpp>
 #include <Voro++/voro++.hh>
 #include <rendering/debugrendering.hpp>
+#include <physics/data/convex_convex_collision_info.hpp>
 
 namespace legion::physics
 {
@@ -13,8 +14,13 @@ namespace legion::physics
     class PhysicsStatics
     {
     public:
+        //TODO move implementation to seperate cpp file
 
         //---------------------------------------------------------------- Collision Detection ----------------------------------------------------------------------------//
+
+        static void DetectConvexConvexCollision(ConvexCollider* convexA, ConvexCollider* convexB
+            , const math::mat4& transformA, const math::mat4& transformB,
+            ConvexConvexCollisionInfo& outCollisionInfo,  physics_manifold& manifold);
 
         /** @brief Given a transformed ConvexCollider and a direction, Gets the vertex furthest in the given direction
          * @param planePosition The position of the support plane in world space
@@ -46,6 +52,8 @@ namespace legion::physics
 
         }
 
+        static float GetSupportPoint(const std::vector<math::vec3>& vertices, const math::vec3& direction, math::vec3& outVec);
+        
         /** @brief Given 2 ConvexColliders, convexA and convexB, checks if one of the faces of convexB creates a seperating axis
          * that seperates the given convex shapes
          * @param convexA the reference collider
@@ -114,7 +122,8 @@ namespace legion::physics
         {
             float currentMinimumSeperation = std::numeric_limits<float>::max();
 
-            math::vec3 positionA = transformA[3];
+            math::vec3 centroidDir = transformA * math::vec4(convexA->GetLocalCentroid(), 0);
+            math::vec3 positionA = math::vec3(transformA[3]) + centroidDir;
 
             for (const auto faceA : convexA->GetHalfEdgeFaces())
             {
@@ -148,7 +157,7 @@ namespace legion::physics
                             if (attemptBuildMinkowskiFace(edgeA, edgeB, transformA, transformB))
                             {
                                 //get world edge direction
-                                math::vec3 edgeADirection= transformA * math::vec4(edgeA->nextEdge->edgePosition, 1) - 
+                                math::vec3 edgeADirection = transformA * math::vec4(edgeA->nextEdge->edgePosition, 1) - 
                                     transformA * math::vec4(edgeA->edgePosition, 1);
 
 
@@ -180,7 +189,7 @@ namespace legion::physics
 
                                 //check if given edges create a seperating axis
                                 float distance = math::dot(seperatingAxis, edgeBtransformedPosition - edgeAtransformedPosition);
-                               
+                                //log::debug("distance {} , currentMinimumSeperation {}", distance, currentMinimumSeperation);
                                 if (distance < currentMinimumSeperation)
                                 {                                 
                                     refEdge.ptr = edgeA;
@@ -189,17 +198,34 @@ namespace legion::physics
                                     seperatingAxisFound = seperatingAxis;
                                     currentMinimumSeperation = distance;
                                 }
-
+                                //log::debug("BUILT MINKOWSKI");
+                            }
+                            else
+                            {
+                                //log::debug("NOT BUILT");
                             }
                         }
                     }
                 }
             }
-
+            /*assert(refEdge.ptr);
+            assert(incEdge.ptr);*/
             //log::debug("a id  {}  b id {} combination {} ", std::get<0>(ids), std::get<1>(ids), std::get<2>(ids));
+            //refEdge.ptr->DEBUG_drawEdge(transformA, math::colors::red);
+            //incEdge.ptr->DEBUG_drawEdge(transformB, math::colors::red);
             maximumSeperation = currentMinimumSeperation;
             return currentMinimumSeperation > 0.0f;
         }
+
+
+        static std::tuple< math::vec3,math::vec3> ConstructAABBFromPhysicsComponentWithTransform
+        (ecs::component_handle<physicsComponent> physicsComponentToUse, const math::mat4& transform);
+
+        static float GetPhysicsComponentSupportPointAtDirection(math::vec3 direction,physicsComponent& physicsComponentToUse);
+
+        static std::tuple< math::vec3, math::vec3> ConstructAABBFromVertices(const std::vector<math::vec3>& vertices);
+
+        static std::tuple< math::vec3, math::vec3> ConstructAABBFromTransformedVertices(const std::vector<math::vec3>& vertices,const math::mat4& transform);
 
         //---------------------------------------------------------- Polyhedron Clipping ----------------------------------------------------------------------------//
 
@@ -437,6 +463,9 @@ namespace legion::physics
             return math::dot(planePosition - startPoint, planeNormal) / math::dot(endPoint - startPoint, planeNormal);
         }
 
+
+
+
         /**Creates a Voronoi diagram based on the given parameters.
         * @param points A list of points these will serve as the points of the voronoi diagram.
         * @param xRange The min and max of the width of the voronoi diagram space.
@@ -449,7 +478,8 @@ namespace legion::physics
         * @param initMem The initial memory amount.
         * @return A list of lists of vec4's
         */
-        static std::vector<std::vector<math::vec4>> GenerateVoronoi(std::vector<math::vec3> points,math::vec2 xRange, math::vec2 yRange, math::vec2 zRange, math::vec3 containerResolution, bool xPeriodic = false, bool yPeriodic = false, bool zPeriodic = false, int initMem = 8)
+        static std::vector<std::vector<math::vec4>> GenerateVoronoi(std::vector<math::vec3> points,math::vec2 xRange, math::vec2 yRange,
+            math::vec2 zRange, math::vec3 containerResolution, bool xPeriodic = false, bool yPeriodic = false, bool zPeriodic = false, int initMem = 8)
         {
             return GenerateVoronoi(points,xRange.x,xRange.y,yRange.x,yRange.y,zRange.x,zRange.y,containerResolution.x,containerResolution.y,containerResolution.z,xPeriodic,yPeriodic,zPeriodic,initMem);
         }
@@ -543,7 +573,9 @@ namespace legion::physics
             float dotMultiplyResultA =
                 planeADotB1 * planeADotB2;
 
-            if (dotMultiplyResultA > 0.0f || math::epsilonEqual(dotMultiplyResultA, 0.0f, math::epsilon<float>()))
+            //log::debug("dotMultiplyResultA {}", dotMultiplyResultA);
+
+            if (dotMultiplyResultA > 0.0f )
             {
                 return false;
             }
@@ -557,7 +589,9 @@ namespace legion::physics
 
             float  dotMultiplyResultB = planeBDotA1 * planeBDotA2;
 
-            if (dotMultiplyResultB > 0.0f || math::epsilonEqual(dotMultiplyResultB, 0.0f, math::epsilon<float>()))
+            //log::debug("dotMultiplyResultB {}", dotMultiplyResultB);
+
+            if (dotMultiplyResultB > 0.0f )
             {
                 return false;
             }
@@ -566,7 +600,9 @@ namespace legion::physics
 
             float dotMultiplyResultAB = planeADotB1 * planeBDotA2;
 
-            if (planeADotB1  * planeBDotA2  < 0.0f || math::epsilonEqual(dotMultiplyResultAB, 0.0f, math::epsilon<float>()))
+            //log::debug("dotMultiplyResultAB {}", dotMultiplyResultAB);
+
+            if (planeADotB1  * planeBDotA2  < 0.0f)
             {
                 return false;
             }

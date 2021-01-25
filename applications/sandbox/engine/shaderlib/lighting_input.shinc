@@ -51,6 +51,9 @@ layout(std140, binding = SV_LIGHTS) readonly buffer LightsBuffer
 
 uniform uint lgn_light_count : SV_LIGHTCOUNT;
 
+#include <texturemaps.shinc>
+
+#if !defined(NO_MATERIAL_INPUT)
 struct MaterialInput
 {
     sampler2D albedo;
@@ -60,8 +63,6 @@ struct MaterialInput
     float heightScale;
 };
 uniform MaterialInput material_input : SV_MATERIAL;
-
-#include <texturemaps.shinc>
 
 Material ExtractMaterial(vec2 uv, Camera camera, vec3 worldNormal, vec3 worldTangent)
 {
@@ -80,7 +81,7 @@ Material ExtractMaterial(vec2 uv, Camera camera, vec3 worldNormal, vec3 worldTan
 
     return material;
 }
-
+#endif
 
 #if defined(LIGHTING_INCL)
 vec3 GetAllLighting(Material material, Camera camera, vec3 worldPosition)

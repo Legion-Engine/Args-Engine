@@ -1,4 +1,4 @@
-#include <physics/mesh_splitter_utils/splittable_polygon.h>
+#include <physics/mesh_splitter_utils/splittable_polygon.hpp>
 #include <physics/physics_statics.hpp>
 #include <physics/physicsconstants.hpp>
 #include <physics/mesh_splitter_utils/mesh_half_edge.hpp>
@@ -65,7 +65,7 @@ namespace legion::physics
     
 
     void SplittablePolygon::CalculatePolygonSplit
-    (const math::mat4& transform, math::vec3 planePosition, math::vec3 planeNormal)
+    (const math::mat4& transform, math::vec3 planePosition, math::vec3 planeNormal, bool keepBelow)
     {
         int aboveCount = 0;
         int belowCount = 0;
@@ -78,16 +78,19 @@ namespace legion::physics
             float distToPlane = PhysicsStatics::PointDistanceToPlane
             (planeNormal, planePosition, worldPosition);
 
-            if (distToPlane > constants::polygonItersectionEpsilon)
+            static float splitEpsilon = math::sqrt(math::epsilon<float>());
+
+            if (distToPlane > splitEpsilon)
             {
                 aboveCount++;
             }
 
-            if (distToPlane < constants::polygonItersectionEpsilon)
+            if (distToPlane < -splitEpsilon)
             {
                 belowCount++;
             }
         }
+        //log::debug(" above {} below {}", aboveCount, belowCount);
 
         if (aboveCount > 0 && belowCount == 0)
         {
@@ -100,6 +103,10 @@ namespace legion::physics
         else if (belowCount > 0 && aboveCount > 0)
         {
             m_SplitState = SplitState::Split;
+        }
+        else if (belowCount == 0 && aboveCount == 0)
+        {
+            m_SplitState = keepBelow ? SplitState::Below : SplitState::Above;
         }
 
 

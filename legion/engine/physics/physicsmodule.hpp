@@ -5,6 +5,7 @@
 #include <physics/components/physics_component.hpp>
 #include <physics/components/rigidbody.hpp>
 #include <physics/mesh_splitter_utils/mesh_splitter.hpp>
+#include <physics/components/fracturer.hpp>
 
 namespace legion::physics
 {
@@ -20,6 +21,7 @@ namespace legion::physics
             reportComponentType<rigidbody>();
             reportComponentType<identifier>();
             reportComponentType<MeshSplitter>();
+            reportComponentType<Fracturer>();
             //reportComponentType <addRB>();
         }
 

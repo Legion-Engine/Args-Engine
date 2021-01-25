@@ -144,7 +144,7 @@ namespace legion::core::math
      * @param triPoint2 - The last triangle point
      * @param triNormal - The triangle plane normal
      */
-    inline float pointToTriangle(const vec3& p, const vec3& triPoint0, const vec3& triPoint1, const vec3& triPoint2, const vec3& triNormal)
+    inline float pointToTriangle(const vec3& p, const vec3& triPoint0, const vec3& triPoint1, const vec3& triPoint2, const vec3& triNormal,bool debug = false)
     {
         if (p == triPoint0 ||
             p == triPoint1 ||
@@ -175,7 +175,6 @@ namespace legion::core::math
         {
             return projectionLength;
         }
-
         //Point q is not inside the triangle, check distance toward each edge of the triangle
         // therefore the smallest distance is distance toward a side or end point
         float distance01 = pointToLineSegment(p, triPoint1, triPoint0);
@@ -332,6 +331,11 @@ namespace legion::core::math
     inline float pointToPlane(const vec3& point, const vec3& planePosition, const vec3& planeNormal)
     {
         return dot(normalize(planeNormal), point - planePosition);
+    }
+
+    inline float angleToPlane(const vec3& point, const vec3& planePosition, const vec3& planeNormal)
+    {
+        return normalizeDot(planeNormal, point - planePosition);
     }
 
     /**@class plane

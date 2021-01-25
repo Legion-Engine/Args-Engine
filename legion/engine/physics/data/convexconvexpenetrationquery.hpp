@@ -1,5 +1,5 @@
 #pragma once
-#include <physics/data/penetrationquery.h>
+#include <physics/data/penetrationquery.hpp>
 #include <physics/halfedgeedge.hpp>
 
 namespace legion::physics

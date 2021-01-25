@@ -24,7 +24,7 @@ namespace legion::physics
     struct MeshSplitterDebugHelper
     {
         std::pair<math::vec3, math::vec3> cuttingSetting;
-
+        math::mat4 DEBUG_transform;
         std::vector<math::vec3> intersectionsPolygons;
         std::vector<math::vec3> nonIntersectionPolygons;
         std::vector< std::vector<math::vec3>> intersectionIslands;

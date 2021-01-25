@@ -40,12 +40,14 @@ namespace legion::core
      */
     struct image final
     {
-        friend struct stb_image_loader;
         friend class ImageCache;
 
+        std::string name;
         math::ivec2 size;
         channel_format format;
         image_components components;
+        size_type dataSize;
+        byte* data;
 
         /**@brief Get the binary representation of the image with different pointer types.
          *        Each pointer type is only enabled if the channel format is the same.
@@ -75,7 +77,7 @@ namespace legion::core
 
         image() = default;
 
-        image(const image& other) : size(other.size), format(other.format), components(other.components), m_id(other.m_id), m_dataSize(other.m_dataSize), m_pixels(other.m_pixels)
+        image(const image& other) : name(other.name), size(other.size), format(other.format), components(other.components), m_id(other.m_id), dataSize(other.dataSize), data(other.data)
         {
             if (m_id)
             {
@@ -84,7 +86,14 @@ namespace legion::core
             }
         }
 
-        image(image&& other) : size(other.size), format(other.format), components(other.components), m_id(other.m_id), m_dataSize(other.m_dataSize), m_pixels(other.m_pixels)
+        image(image&& other)
+            : name(std::move(other.name)),
+            size(std::move(other.size)),
+            format(std::move(other.format)),
+            components(std::move(other.components)),
+            m_id(std::move(other.m_id)),
+            dataSize(std::move(other.dataSize)),
+            data(other.data)
         {
             if (m_id)
             {
@@ -104,8 +113,8 @@ namespace legion::core
                     m_refs[m_id]--;
                     if (m_refs[m_id] == 0)
                     {
-                        delete[] m_pixels;
-                        m_pixels = nullptr;
+                        delete[] data;
+                        data = nullptr;
                         m_refs.erase(m_id);
                     }
                 }
@@ -115,11 +124,12 @@ namespace legion::core
                 m_refs[m_id]++;
             }
 
+            name = other.name;
             size = other.size;
             format = other.format;
             components = other.components;
-            m_dataSize = other.m_dataSize;
-            m_pixels = other.m_pixels;
+            dataSize = other.dataSize;
+            data = other.data;
             return *this;
         }
 
@@ -133,8 +143,8 @@ namespace legion::core
                     m_refs[m_id]--;
                     if (m_refs[m_id] == 0)
                     {
-                        delete[] m_pixels;
-                        m_pixels = nullptr;
+                        delete[] data;
+                        data = nullptr;
                         m_refs.erase(m_id);
                     }
                 }
@@ -144,11 +154,12 @@ namespace legion::core
                 m_refs[m_id]++;
             }
 
-            size = other.size;
-            format = other.format;
-            components = other.components;
-            m_dataSize = other.m_dataSize;
-            m_pixels = other.m_pixels;
+            name = std::move(other.name);
+            size = std::move(other.size);
+            format = std::move(other.format);
+            components = std::move(other.components);
+            dataSize = std::move(other.dataSize);
+            data = other.data;
             return *this;
         }
 
@@ -161,8 +172,8 @@ namespace legion::core
                 m_refs[m_id]--;
                 if (m_refs[m_id] == 0)
                 {
-                    delete[] m_pixels;
-                    m_pixels = nullptr;
+                    delete[] data;
+                    data = nullptr;
                     m_refs.erase(m_id);
                 }
             }
@@ -174,8 +185,6 @@ namespace legion::core
         static std::mutex m_refsLock;
 
         id_type m_id;
-        size_type m_dataSize;
-        byte* m_pixels;
     };
 
     template<typename T>
@@ -187,14 +196,14 @@ namespace legion::core
     template<>
     inline void* image::get_raw_data<void>()
     {
-        return reinterpret_cast<void*>(m_pixels);
+        return reinterpret_cast<void*>(data);
     }
 
     template<>
     inline byte* image::get_raw_data<byte>()
     {
         if (format == channel_format::eight_bit)
-            return m_pixels;
+            return data;
         return nullptr;
     }
 
@@ -202,7 +211,7 @@ namespace legion::core
     inline uint16* image::get_raw_data<uint16>()
     {
         if (format == channel_format::sixteen_bit)
-            return reinterpret_cast<uint16*>(m_pixels);
+            return reinterpret_cast<uint16*>(data);
         return nullptr;
     }
 
@@ -210,7 +219,7 @@ namespace legion::core
     inline float* image::get_raw_data<float>()
     {
         if (format == channel_format::float_hdr)
-            return reinterpret_cast<float*>(m_pixels);
+            return reinterpret_cast<float*>(data);
         return nullptr;
     }
 
@@ -286,6 +295,8 @@ namespace legion::core
          * @return image_handle A valid handle to the newly created image if it succeeds, invalid_image_handle if it fails.
          */
         static image_handle create_image(const std::string& name, const filesystem::view& file, image_import_settings settings = default_image_settings);
+        static image_handle create_image(const filesystem::view& file, image_import_settings settings = default_image_settings);
+        static image_handle insert_image(image&& img);
 
         /**@brief Returns a handle to a image with a certain name. Will return invalid_image_handle if the requested image doesn't exist.
          */

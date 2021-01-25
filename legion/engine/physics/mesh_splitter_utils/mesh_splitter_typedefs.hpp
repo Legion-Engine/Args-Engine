@@ -1,8 +1,8 @@
 #pragma once
 #include <core/core.hpp>
 #include <physics/mesh_splitter_utils/mesh_half_edge.hpp>
-#include <physics/mesh_splitter_utils/primitive_mesh.h>
-#include <physics/mesh_splitter_utils/splittable_polygon.h>
+#include <physics/mesh_splitter_utils/primitive_mesh.hpp>
+#include <physics/mesh_splitter_utils/splittable_polygon.hpp>
 
 namespace legion::physics
 {

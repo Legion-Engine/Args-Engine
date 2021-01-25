@@ -42,8 +42,6 @@ namespace legion::rendering
         }
 
     private:
-        //hard coded seed for now
-        const int seed = 0;
         //index to index the particle system name
         int cloudGenerationCount = 0;
         //query containing point clouds
@@ -51,6 +49,8 @@ namespace legion::rendering
         //compute shader
         compute::function pointCloudGeneratorCS;
         compute::function preProcessPointCloudCS;
+
+        ParticleSystemHandle particleSystem;
         void InitComputeShader()
         {
             if (!pointCloudGeneratorCS.isValid())
@@ -83,9 +83,9 @@ namespace legion::rendering
             auto indices = m.second.indices;
             auto uvs = m.second.uvs;
             uint triangle_count = indices.size() / 3;
-
             //compute process size
             uint process_Size = triangle_count;
+
             //generate initial buffers from triangle info
             std::vector<uint> samplesPerTri(triangle_count);
             auto vertexBuffer = compute::Context::createBuffer(vertices, compute::buffer_type::READ_BUFFER, "vertices");
@@ -95,6 +95,8 @@ namespace legion::rendering
 
 
 
+
+            ///PreProcess pointcloud
             //preprocess, calculate individual sample count per triangle
             std::vector<uint> output(triangle_count);
             auto outBuffer = compute::Context::createBuffer(output, compute::buffer_type::WRITE_BUFFER, "pointsCount");
@@ -111,40 +113,54 @@ namespace legion::rendering
             {
                 totalSampleCount += output.at(i);
             }
-
             log::debug(totalSampleCount);
+
+
+
+
+            ///Generate Point cloud
             //Generate points result vector
             std::vector<math::vec4> result(totalSampleCount);
-
+            std::vector<math::vec4> resultColor(totalSampleCount);
             //Get normal map
-            auto [lock, img] = realPointCloud.m_heightMap.get_raw_image();
+            auto [lock, normal] = realPointCloud.m_heightMap.get_raw_image();
             {
-                async::readonly_guard guard(lock);
-                //Create buffers
-                auto normalMapBuffer = compute::Context::createImage(img, compute::buffer_type::READ_BUFFER, "normalMap");
-                auto vertexBuffer = compute::Context::createBuffer(vertices, compute::buffer_type::READ_BUFFER, "vertices");
-                auto indexBuffer = compute::Context::createBuffer(indices, compute::buffer_type::READ_BUFFER, "indices");
-                auto sampleBuffer = compute::Context::createBuffer(output, compute::buffer_type::READ_BUFFER, "samples");
-                auto uvBuffer = compute::Context::createBuffer(uvs, compute::buffer_type::READ_BUFFER, "uvs");
-                auto outBuffer = compute::Context::createBuffer(result, compute::buffer_type::WRITE_BUFFER, "points");
-                uint size = realPointCloud.m_heightMap.size().x;
-                auto computeResult = pointCloudGeneratorCS
-                (
-                    process_Size,
-                    vertexBuffer,
-                    indexBuffer,
-                    uvBuffer,
-                    sampleBuffer,
-                    normalMapBuffer,
-                    // karg(realPointCloud.m_sampleDepth, "sampleWidth"),
-                    karg(realPointCloud.m_heightStrength, "normalStrength"),
-                    karg(size, "textureSize"),
-                    outBuffer
-                );
+                auto [lock2, albedo] = realPointCloud.m_AlbedoMap.get_raw_image();
+                {
+                    async::readonly_multiguard guard(lock, lock2);
+
+                    auto normalMapBuffer = compute::Context::createImage(normal, compute::buffer_type::READ_BUFFER, "normalMap");
+
+
+
+                    //Create buffers
+                    auto albedoMapBuffer = compute::Context::createImage(albedo, compute::buffer_type::READ_BUFFER, "albedoMap");
+                    auto sampleBuffer = compute::Context::createBuffer(output, compute::buffer_type::READ_BUFFER, "samples");
+                    auto uvBuffer = compute::Context::createBuffer(uvs, compute::buffer_type::READ_BUFFER, "uvs");
+
+                    auto outBuffer = compute::Context::createBuffer(result, compute::buffer_type::WRITE_BUFFER, "points");
+                    auto colorBuffer = compute::Context::createBuffer(resultColor, compute::buffer_type::WRITE_BUFFER, "colors");
+
+                    uint size = realPointCloud.m_AlbedoMap.size().x;
+                    auto computeResult = pointCloudGeneratorCS
+                    (
+                        process_Size,
+                        vertexBuffer,
+                        indexBuffer,
+                        uvBuffer,
+                        sampleBuffer,
+                        albedoMapBuffer,
+                        normalMapBuffer,
+                        karg(realPointCloud.m_heightStrength, "normalStrength"),
+                        karg(size, "textureSize"),
+                        outBuffer,
+                        colorBuffer
+                    );
+                }
             }
             //translate vec4 into vec3
             std::vector<math::vec3> particleInput(totalSampleCount);
-            for (int i = 0; i < totalSampleCount; i++)
+            for (size_t i = 0; i < totalSampleCount; i++)
             {
                 particleInput.at(i) = result.at(i).xyz + posiitonOffset;
             }
@@ -155,7 +171,7 @@ namespace legion::rendering
                realPointCloud.m_Material,
                ModelCache::get_handle("billboard")
             };
-            GenerateParticles(params, particleInput, realPointCloud.m_trans);
+            GenerateParticles(params, particleInput, resultColor, realPointCloud.m_trans);
 
 
             //write that pc has been generated
@@ -163,22 +179,27 @@ namespace legion::rendering
             pointCloud.write(realPointCloud);
         }
 
-        void GenerateParticles(pointCloudParameters params, std::vector<math::vec3> input, transform trans)
+        void GenerateParticles(pointCloudParameters params, std::vector<math::vec3> input, std::vector<math::vec4> inputColor, transform trans)
         {
             //generate particle system
-            std::string name = "GeneratedPointCloud " + std::to_string(cloudGenerationCount);
+            std::string name = typeName<PointCloudParticleSystem>();
 
-            auto newPointCloud = ParticleSystemCache::createParticleSystem<PointCloudParticleSystem>(name, params, input);
 
+
+            auto newPointCloud = ParticleSystemCache::createParticleSystem<PointCloudParticleSystem>(name, params);
             //create entity to store particle system
             auto newEnt = createEntity();
 
             //  newEnt.add_component <rendering::lod>();
             newEnt.add_components<transform>(trans.get<position>().read(), trans.get<rotation>().read(), trans.get<scale>().read());
 
-            rendering::particle_emitter emitter = newEnt.add_component<rendering::particle_emitter>().read();
+            auto emitterHandle = newEnt.add_component<rendering::particle_emitter>();
+            auto emitter = emitterHandle.read();
             emitter.particleSystemHandle = newPointCloud;
+            emitter.pointInput = input;
+            emitter.colorInput = inputColor;
             newEnt.get_component_handle<rendering::particle_emitter>().write(emitter);
+            //newPointCloud.get()->setup(emitterHandle, input, inputColor);
 
             //increment index
             cloudGenerationCount++;

@@ -56,6 +56,20 @@ namespace legion::physics
 			return nextEdge->edgePosition - edgePosition;
 		}
 
+        bool isVertexVisible(const math::vec3& vert)
+        {
+            float distanceToPlane =
+                math::pointToPlane(vert, edgePosition, face->normal);
+
+            return distanceToPlane > math::sqrt(math::epsilon<float>());
+        }
+
+        bool isEdgeHorizonFromVertex(const math::vec3& vert)
+        {
+            return isVertexVisible(vert) && !pairingEdge->isVertexVisible(vert);
+        }
+
+
         void DEBUG_drawEdge(const math::mat4& transform, const math::color& debugColor,float time = 20.0f, float width = 5.0f)
         {
             math::vec3 worldStart = transform * math::vec4(edgePosition, 1);
@@ -63,6 +77,21 @@ namespace legion::physics
 
             debug::user_projectDrawLine(worldStart, worldEnd, debugColor, width, time, true);
         }
+
+        void DEBUG_drawInsetEdge(const math::vec3 spacing, const math::color& debugColor, float time = 20.0f, float width = 5.0f)
+        {
+            math::vec3 worldCentroid = face->centroid + spacing;
+
+            math::vec3 worldStart = edgePosition + spacing;
+            math::vec3 startDifference = (worldCentroid - worldStart) * 0.1f;
+      
+            math::vec3 worldEnd = nextEdge->edgePosition + spacing;
+            math::vec3 endDifference = (worldCentroid - worldEnd) * 0.1f;
+
+
+            debug::user_projectDrawLine(worldStart + startDifference, worldEnd + endDifference, debugColor, width, time, true);
+        }
+
 
 	};
 }

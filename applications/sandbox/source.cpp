@@ -6,6 +6,7 @@
 //#define SUPER_LOW_POWER
 #if defined(SUPER_LOW_POWER)
 #define LEGION_MIN_THREADS 3 // Update, Rendering, Input, excluding audio and physics
+#define LEGION_LOW_POWER
 #else
 #define LEGION_MIN_THREADS 5 // Update, Rendering, Input, Audio, Physics
 #endif

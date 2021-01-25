@@ -5,10 +5,8 @@ namespace legion::rendering
 {
     struct lod
     {
-        // lod() = default;
-        lod(int maxLevel = 5, float maxDistance = 50.0f) : MaxLod(maxLevel), m_maxDistance(maxDistance)
+        lod(int maxLevel = 8, float maxDistance = 35.0f) : MaxLod(maxLevel), m_maxDistance(maxDistance)
         {
-        //    UpdateThresholdLinear();
         }
         int MaxLod;
         int Level = 0;

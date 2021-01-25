@@ -150,14 +150,17 @@ float sampleHeight(__read_only image2d_t texture, float2 uvs, int texelSize)
 {
     float r=0.0f;
     int2 newCoordinates = (int2)(uvs.x*texelSize,uvs.y*texelSize);
-    //  newCoordinates *=2;
-    //  newCoordinates-=1;
-
- //   newCoordinates = (int2)(uvs.x,uvs.y) * 2048;
     float4 textureValue=read_imagef(texture, sampler, (int2)newCoordinates);
     r =textureValue.x;
     return r;
 }
+float4 sampleColor(__read_only image2d_t texture, float2 uvs, int texelSize)
+{
+    int2 newCoordinates = (int2)(uvs.x*texelSize,uvs.y*texelSize);
+    float4 r =(read_imagef(texture, sampler, (int2)newCoordinates));
+    return r;
+}
+
 
 
 __kernel void Main
@@ -166,12 +169,14 @@ __kernel void Main
     __global const uint* indices,
     __global const float2* uvs,
     __global const uint* samples,
+    __read_only image2d_t albedoMap,
     __read_only image2d_t normalMap,
     //const uint samplesPerTri,
 //    const uint sampleWidth,
     const float normalStrength,
     const uint textureSize,
-    __global float4* points
+    __global float4* points,
+    __global float4* colors
 )
 {
     //init indices and rand state
@@ -252,11 +257,13 @@ __kernel void Main
         //get uvs
         float2 uvCoordinates = SampleUVs(uniformOutput[i],uvA,uvB,uvC);
         //sample height based on uvs
-        float heightOffset = sampleHeight(normalMap,uvCoordinates + (float2)(0.0f,0.0f),textureSize);
-
+        float heightOffset = sampleHeight(normalMap,uvCoordinates ,textureSize);
+        float4 Color = sampleColor(albedoMap,uvCoordinates ,textureSize);
+      //  Color = (float4)(uvCoordinates.x, uvCoordinates.y, 0, 1);
+        //Color = (float4)(1,0,0,1);
         //scale normal by the height & add it to the point
         newPoint+= normal*heightOffset;
-     
+        colors[index]=Color;
         points[index]=newPoint;
     }
 }

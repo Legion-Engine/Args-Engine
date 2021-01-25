@@ -57,8 +57,7 @@ namespace legion::rendering
             if (iterator == m_cache.end()) return nullptr;
             return iterator->second.get();
         }
-
-        static ParticleSystemHandle createParticleSystemImpl(const std::string& name, ParticleSystemBase* ptr);
+        static ParticleSystemHandle createParticleSystemImpl(const std::string& name, ParticleSystemBase* system);
 
         static std::unordered_map<id_type, std::unique_ptr<const ParticleSystemBase>> m_cache;
         static async::rw_spinlock m_particleSystemLock;

@@ -42,6 +42,25 @@ namespace legion::core::detail
         }
     };
 
+    image_handle loadGLTFImage(const tinygltf::Image& img)
+    {
+        auto handle = ImageCache::get_handle(img.name);
+        if (handle)
+            return handle;
+
+        image image{};
+        image.name = img.name;
+        image.size.x = img.width;
+        image.size.y = img.height;
+        image.format = img.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? channel_format::eight_bit : img.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT ? channel_format::sixteen_bit : channel_format::float_hdr;
+        image.components = img.component == 1 ? image_components::grey : img.component == 2 ? image_components::grey_alpha : img.component == 3 ? image_components::rgb : image_components::rgba;
+        image.dataSize = img.image.size();
+        image.data = new byte[image.dataSize];
+
+        memcpy(image.data, img.image.data(), img.image.size());
+        return ImageCache::insert_image(std::move(image));
+    }
+
     /**
      * @brief Function to copy tinygltf buffer data into the correct mesh data vector
      *
@@ -245,6 +264,46 @@ namespace legion::core
             log::warn(warnings.c_str());
         }
 
+        if (settings.materials)
+        {
+            std::vector<tinyobj::material_t> srcMaterials = reader.GetMaterials();
+
+            for (auto& srcMat : srcMaterials)
+            {
+                auto& material = settings.materials->emplace_back();
+                material.name = srcMat.name;
+                material.opaque = srcMat.dissolve == 1;
+                material.alphaCutoff = 0.5f;
+                material.doubleSided = false;
+
+                material.albedoValue = math::color(srcMat.diffuse[0], srcMat.diffuse[1], srcMat.diffuse[2]);
+                if (!srcMat.diffuse_texname.empty())
+                    material.albedoMap = ImageCache::create_image(filesystem::view(srcMat.diffuse_texname));
+
+                material.metallicValue = srcMat.metallic;
+                if (!srcMat.metallic_texname.empty())
+                    material.metallicMap = ImageCache::create_image(filesystem::view(srcMat.metallic_texname));
+
+                material.roughnessValue = srcMat.roughness;
+                if (!srcMat.roughness_texname.empty())
+                    material.roughnessMap = ImageCache::create_image(filesystem::view(srcMat.roughness_texname));
+
+                material.metallicRoughnessMap = invalid_image_handle;
+
+                material.emissiveValue = math::color(srcMat.emission[0], srcMat.emission[1], srcMat.emission[2]);
+                if (!srcMat.emissive_texname.empty())
+                    material.emissiveMap = ImageCache::create_image(filesystem::view(srcMat.emissive_texname));
+
+                if (!srcMat.normal_texname.empty())
+                    material.normalMap = ImageCache::create_image(filesystem::view(srcMat.normal_texname));
+
+                material.aoMap = invalid_image_handle;
+
+                if (!srcMat.bump_texname.empty())
+                    material.heightMap = ImageCache::create_image(filesystem::view(srcMat.bump_texname));
+            }
+        }
+
         // Get all the vertex and composition data.
         tinyobj::attrib_t attributes = reader.GetAttrib();
         std::vector<tinyobj::shape_t> shapes = reader.GetShapes();
@@ -342,7 +401,6 @@ namespace legion::core
         // Load gltf mesh data into model
         bool ret = loader.LoadBinaryFromMemory(&model, &err, &warn, resource.data(), resource.size());
 
-
         if (!err.empty())
         {
             // Check and print errors
@@ -357,6 +415,42 @@ namespace legion::core
         {
             // If the return failed, return error
             return decay(Err(legion_fs_error("Failed to parse glTF")));
+        }
+
+        if (settings.materials)
+        {
+            for (auto& srcMat : model.materials)
+            {
+                auto& material = settings.materials->emplace_back();
+                auto& pbrData = srcMat.pbrMetallicRoughness;
+
+                material.name = srcMat.name;
+                material.opaque = srcMat.alphaMode == "OPAQUE" || srcMat.alphaMode == "MASK";
+                material.alphaCutoff = srcMat.alphaCutoff;
+                material.doubleSided = srcMat.doubleSided;
+
+                material.albedoValue = math::color(pbrData.baseColorFactor[0], pbrData.baseColorFactor[1], pbrData.baseColorFactor[2], pbrData.baseColorFactor[3]);
+                if (pbrData.baseColorTexture.index >= 0)
+                    material.albedoMap = detail::loadGLTFImage(model.images[model.textures[pbrData.baseColorTexture.index].source]);
+
+                material.metallicValue = static_cast<float>(pbrData.metallicFactor);
+                material.roughnessValue = static_cast<float>(pbrData.roughnessFactor);
+
+                if (pbrData.metallicRoughnessTexture.index >= 0)
+                    material.metallicRoughnessMap = detail::loadGLTFImage(model.images[model.textures[pbrData.metallicRoughnessTexture.index].source]);
+
+                material.emissiveValue = math::color(srcMat.emissiveFactor[0], srcMat.emissiveFactor[1], srcMat.emissiveFactor[2]);
+                if (srcMat.emissiveTexture.index >= 0)
+                    material.emissiveMap = detail::loadGLTFImage(model.images[model.textures[srcMat.emissiveTexture.index].source]);
+
+                if (srcMat.normalTexture.index >= 0)
+                    material.normalMap = detail::loadGLTFImage(model.images[model.textures[srcMat.normalTexture.index].source]);
+
+                if (srcMat.occlusionTexture.index >= 0)
+                    material.aoMap = detail::loadGLTFImage(model.images[model.textures[srcMat.occlusionTexture.index].source]);
+
+                material.heightMap = invalid_image_handle;
+            }
         }
 
         size_t offset = 0;
@@ -502,6 +596,42 @@ namespace legion::core
         {
             // If the return failed, return error
             return decay(Err(legion_fs_error("Failed to parse glTF")));
+        }
+
+        if (settings.materials)
+        {
+            for (auto& srcMat : model.materials)
+            {
+                auto& material = settings.materials->emplace_back();
+                auto& pbrData = srcMat.pbrMetallicRoughness;
+
+                material.name = srcMat.name;
+                material.opaque = srcMat.alphaMode == "OPAQUE" || srcMat.alphaMode == "MASK";
+                material.alphaCutoff = srcMat.alphaCutoff;
+                material.doubleSided = srcMat.doubleSided;
+
+                material.albedoValue = math::color(pbrData.baseColorFactor[0], pbrData.baseColorFactor[1], pbrData.baseColorFactor[2], pbrData.baseColorFactor[3]);
+                if (pbrData.baseColorTexture.index >= 0)
+                    material.albedoMap = detail::loadGLTFImage(model.images[model.textures[pbrData.baseColorTexture.index].source]);
+
+                material.metallicValue = static_cast<float>(pbrData.metallicFactor);
+                material.roughnessValue = static_cast<float>(pbrData.roughnessFactor);
+
+                if (pbrData.metallicRoughnessTexture.index >= 0)
+                    material.metallicRoughnessMap = detail::loadGLTFImage(model.images[model.textures[pbrData.metallicRoughnessTexture.index].source]);
+
+                material.emissiveValue = math::color(srcMat.emissiveFactor[0], srcMat.emissiveFactor[1], srcMat.emissiveFactor[2]);
+                if (srcMat.emissiveTexture.index >= 0)
+                    material.emissiveMap = detail::loadGLTFImage(model.images[model.textures[srcMat.emissiveTexture.index].source]);
+
+                if (srcMat.normalTexture.index >= 0)
+                    material.normalMap = detail::loadGLTFImage(model.images[model.textures[srcMat.normalTexture.index].source]);
+
+                if (srcMat.occlusionTexture.index >= 0)
+                    material.aoMap = detail::loadGLTFImage(model.images[model.textures[srcMat.occlusionTexture.index].source]);
+
+                material.heightMap = invalid_image_handle;
+            }
         }
 
         size_t offset = 0;

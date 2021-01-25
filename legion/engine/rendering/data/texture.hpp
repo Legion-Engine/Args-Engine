@@ -88,6 +88,7 @@ namespace legion::rendering
      */
     struct texture
     {
+        std::string name;
         app::gl_id textureId = invalid_id;
 
         texture_components channels;

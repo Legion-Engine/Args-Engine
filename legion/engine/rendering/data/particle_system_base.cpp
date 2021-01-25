@@ -7,13 +7,13 @@ namespace legion::rendering
 {
     ecs::EcsRegistry* ParticleSystemBase::m_registry;
 
-    void ParticleSystemBase::createParticle(ecs::component_handle<particle> particleHandle, transform transformHandle) const
+    void ParticleSystemBase::createParticle(ecs::component_handle<transform> transformHandle) const
     {
         OPTICK_EVENT();
-        ecs::entity_handle particularParticle = particleHandle.entity;
+         ecs::entity_handle entity = transformHandle.entity;
 
-        //Handle model and material assigning.
-        particularParticle.add_component<mesh_renderer>(rendering::mesh_renderer(m_particleMaterial, m_particleModel));
+         //Handle model and material assigning.
+         entity.add_component<mesh_renderer>(rendering::mesh_renderer(m_particleMaterial, m_particleModel));
     }
 
     void ParticleSystemBase::cleanUpParticle(ecs::entity_handle particleHandle, particle_emitter& emitter) const

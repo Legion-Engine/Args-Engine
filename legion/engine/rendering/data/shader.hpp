@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <rendering/data/model.hpp>
 #include <rendering/data/texture.hpp>
 #include <rendering/util/bindings.hpp>
 #include <rendering/util/settings.hpp>
@@ -12,7 +11,6 @@
 
 namespace legion::rendering
 {
-    struct model;
     struct camera;
     struct shader;
     struct ShaderCache;

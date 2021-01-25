@@ -15,7 +15,7 @@ namespace legion::rendering
     void DebugRenderStage::endDebugDomain()
     {
         if (!localLines) return;
-
+            //localLines = new std::unordered_set<debug::debug_line_event>();*/
         size_type size = localLines->size();
 
         if (size == 0)
@@ -62,7 +62,6 @@ namespace legion::rendering
 
     void DebugRenderStage::render(app::window& context, camera& cam, const camera::camera_input& camInput, time::span deltaTime)
     {
-        OPTICK_EVENT();
         using namespace legion::core::fs::literals;
 
         std::vector<debug::debug_line_event> lines;

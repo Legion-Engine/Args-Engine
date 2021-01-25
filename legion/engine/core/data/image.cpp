@@ -34,7 +34,7 @@ namespace legion::core
     size_type image::data_size()
     {
         OPTICK_EVENT();
-        return m_dataSize;
+        return dataSize;
     }
 
     math::ivec2 image_handle::size()
@@ -82,8 +82,8 @@ namespace legion::core
 
             output.reserve(image.size.x * image.size.y);
 
-            byte* start = image.m_pixels;
-            byte* end = image.m_pixels + image.m_dataSize;
+            byte* start = image.data;
+            byte* end = image.data + image.dataSize;
             size_type channelSize = static_cast<uint>(image.format);
             size_type colorSize = static_cast<int>(image.components) * channelSize;
             for (byte* colorPtr = start; colorPtr < end; colorPtr += colorSize)
@@ -287,11 +287,28 @@ namespace legion::core
         {
             async::readwrite_guard guard(m_imagesLock);
             auto* pair_ptr = new std::pair<async::rw_spinlock, image>();
-            pair_ptr->second = std::move(result);
+            pair_ptr->second = std::move(result.decay());
+            pair_ptr->second.name = name;
             pair_ptr->second.m_id = id;
             m_images.emplace(std::make_pair(id, std::unique_ptr<std::pair<async::rw_spinlock, image>>(pair_ptr)));
         }
 
+        return { id };
+    }
+
+    image_handle ImageCache::create_image(const filesystem::view& file, image_import_settings settings)
+    {
+        return create_image(file.get_filename(), file, settings);
+    }
+
+    image_handle ImageCache::insert_image(image&& img)
+    {
+        id_type id = nameHash(img.name);
+        async::readwrite_guard guard(m_imagesLock);
+        auto* pair_ptr = new std::pair<async::rw_spinlock, image>();
+        pair_ptr->second = img;
+        pair_ptr->second.m_id = id;
+        m_images.emplace(std::make_pair(id, std::unique_ptr<std::pair<async::rw_spinlock, image>>(pair_ptr)));
         return { id };
     }
 

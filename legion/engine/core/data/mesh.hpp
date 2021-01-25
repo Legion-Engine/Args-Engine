@@ -4,6 +4,7 @@
 #include <core/filesystem/resource.hpp>
 #include <core/filesystem/view.hpp>
 #include <core/async/rw_spinlock.hpp>
+#include <core/data/image.hpp>
 
 #include <utility>
 #include <vector>
@@ -74,19 +75,45 @@ namespace legion::core
      */
     constexpr mesh_handle invalid_mesh_handle{ invalid_id };
 
+    struct material_data
+    {
+        std::string name;
+
+        bool opaque;            
+        float alphaCutoff;                
+        bool doubleSided;                 
+
+        math::color albedoValue;
+        image_handle albedoMap;
+        float metallicValue;
+        image_handle metallicMap;
+        float roughnessValue;
+        image_handle roughnessMap;
+        image_handle metallicRoughnessMap;
+        math::color emissiveValue;
+        image_handle emissiveMap;
+
+        image_handle normalMap;
+        image_handle aoMap;
+        image_handle heightMap;
+    };
+
+    using material_list = std::vector<material_data>;
+
     /**@class mesh_import_settings
      * @brief Data structure to parameterize the mesh import process.
      */
     struct mesh_import_settings
     {
-        bool triangulate;
-        bool vertex_color;
-        filesystem::view contextFolder;
+        material_list* materials = nullptr;
+        bool triangulate = true;
+        bool vertex_color = false;
+        filesystem::view contextFolder = filesystem::view(std::string_view(""));
     };
 
     /**@brief Default mesh import settings.
      */
-    const mesh_import_settings default_mesh_settings{ true, false, filesystem::view("") };
+    const mesh_import_settings default_mesh_settings{ nullptr, true, false, filesystem::view(std::string_view("")) };
 
     /**@class MeshCache
      * @brief Data cache for loading, storing and managing raw meshes.

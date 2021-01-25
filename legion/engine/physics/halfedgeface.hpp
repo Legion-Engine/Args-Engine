@@ -58,6 +58,8 @@ namespace legion::physics
          */
         bool makeNormalsConvexWithFace(HalfEdgeFace& other);
 
+        bool makeNormalsConvexWithNeighbors(HalfEdgeFace& other);
+
         /**@brief Calculates the angle relation from this to another face
          */
         face_angle_relation getAngleRelation(const HalfEdgeFace& other);
@@ -71,6 +73,8 @@ namespace legion::physics
          * @return Returns true when one of the faces or both have been made convex, false when they were already convex
          */
         static bool makeNormalsConvexWithFace(HalfEdgeFace& first, HalfEdgeFace& second);
+
+        void mergeCoplanarNeighbors(std::vector<HalfEdgeFace*>& removed);
 
         /**@brief Finds the edge that splits the two faces
          * @return A pointer to the edge, nullptr if the two faces are not connected

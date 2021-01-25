@@ -1,5 +1,6 @@
 #pragma once
 #include <rendering/data/framebuffer.hpp>
+#include <rendering/data/buffer.hpp>
 #include <rendering/components/camera.hpp>
 #include <application/application.hpp>
 

@@ -1,4 +1,4 @@
-#include <physics/mesh_splitter_utils/primitive_mesh.h>
+#include <physics/mesh_splitter_utils/primitive_mesh.hpp>
 #include <rendering/components/renderable.hpp>
 
 namespace legion::physics
@@ -15,10 +15,16 @@ namespace legion::physics
 
     ecs::entity_handle PrimitiveMesh::InstantiateNewGameObject()
     {
+        auto [originalPosH, originalRotH, originalScaleH] = originalEntity.get_component_handles<transform>();
+        math::mat4 trans = math::compose(originalScaleH.read(), originalRotH.read(), originalPosH.read());
+      
         auto ent = m_ecs->createEntity();
+        math::vec3 offset;
 
         mesh newMesh;
-        populateMesh(newMesh);
+
+        math::vec3 scale = originalScaleH.read();
+        populateMesh(newMesh, trans, offset, scale);
       
         newMesh.calculate_tangents(&newMesh);
 
@@ -39,15 +45,16 @@ namespace legion::physics
         ent.add_components<rendering::mesh_renderable>(meshFilter,rendering::mesh_renderer( originalMaterial));
 
         //create transform
-        auto [originalPosH, originalRotH, originalScaleH] = originalEntity.get_component_handles<transform>();
+      
         auto [posH, rotH ,scaleH] = m_ecs->createComponents<transform>(ent);
-
-        posH.write(originalPosH.read());
+        math::vec3 newEntityPos = originalPosH.read() + offset;
+        posH.write(newEntityPos);
         rotH.write(originalRotH.read());
-        scaleH.write(originalScaleH.read());
+        //scaleH.write(originalScaleH.read());
 
         math::vec3 initialPos = originalPosH.read();
-        originalPosH.write(initialPos + math::vec3(7, 0, 0));
+        //+ math::vec3(7, 0, 0)
+        originalPosH.write(initialPos );
         //m_ecs->destroyEntity(originalEntity);
 
         return ent;
@@ -58,7 +65,9 @@ namespace legion::physics
         m_ecs = ecs;
     }
 
-    void PrimitiveMesh::populateMesh(mesh& mesh)
+
+
+    void PrimitiveMesh::populateMesh(mesh& mesh, const math::mat4& originalTransform , math::vec3& outOffset,math::vec3& scale)
     {
         std::vector<uint>& indices = mesh.indices;
         std::vector<math::vec3>& vertices = mesh.vertices;
@@ -69,6 +78,12 @@ namespace legion::physics
 
         for (auto polygon : polygons)
         {
+            if (polygon->GetMeshEdges().empty())
+            {
+                log::error("Primitive Mesh has has an empty polygon");
+                continue;
+            }
+
             polygon->ResetEdgeVisited();
 
             std::queue<meshHalfEdgePtr> unvisitedEdgeQueue;
@@ -93,23 +108,48 @@ namespace legion::physics
                     uvs.push_back(edge2->uv);
                     uvs.push_back(edge3->uv);
 
-                    if (!edge1->isBoundary)
+                    if (!edge1->isBoundary && edge1->pairingEdge)
                     {
                         unvisitedEdgeQueue.push(edge1->pairingEdge);
                     }
 
-                    if (!edge2->isBoundary)
+                    if (!edge2->isBoundary && edge2->pairingEdge)
                     {
                         unvisitedEdgeQueue.push(edge2->pairingEdge);
                     }
 
-                    if (!edge3->isBoundary)
+                    if (!edge3->isBoundary && edge3->pairingEdge)
                     {
                         unvisitedEdgeQueue.push(edge3->pairingEdge);
                     }
                 }
             }
         }
+
+        //get centroid of vertices
+        math::vec3 worldCentroid = math::vec3();
+
+        for (const auto& vertex : vertices)
+        {
+            worldCentroid += vertex;
+        }
+
+        worldCentroid /= static_cast<float>(vertices.size());
+
+        worldCentroid = originalTransform * math::vec4(worldCentroid, 1);
+        math::vec3 originalPosition = originalTransform[3];
+
+        outOffset = worldCentroid - originalPosition;
+
+        math::vec3 localOffset = math::inverse(originalTransform) * math::vec4(outOffset, 0);
+
+        //shift vertices by offset
+        for (auto& vertex : vertices)
+        {
+            vertex -= localOffset;
+            //vertex *= scale;
+        }
+
 
         for (int i = 0; i < vertices.size(); i++)
         {

@@ -1,6 +1,7 @@
 #include <rendering/pipeline/default/stages/meshrenderstage.hpp>
 #include <rendering/components/light.hpp>
 #include <rendering/data/buffer.hpp>
+#include <rendering/data/model.hpp>
 
 namespace legion::rendering
 {

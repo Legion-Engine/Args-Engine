@@ -62,9 +62,8 @@ public:
               directionalLightMH = rendering::MaterialCache::create_material("directional light", colorshader);
               directionalLightMH.set_param("color", math::color(1, 1, 0.8f));
 
-                cube = rendering::ModelCache::create_model("cube", "assets://models/cube.obj"_view);
+              cube = rendering::ModelCache::create_model("cube", "assets://models/cube.obj"_view);
               vertexColor = rendering::MaterialCache::create_material("vertex color", "assets://shaders/vertexcolor.shs"_view);
-
 
               std::vector<math::vec3> positions{
                   math::vec3(0,1.0f,0),

@@ -92,13 +92,12 @@ namespace legion::rendering
             }
             return depth;
         }
-        //gets data of the tree starting at defined depth
         void GetData(int depth, std::vector<math::vec3>* Data)
         {
             //get data for current tree depth
-            for (auto& [itemPos, item] : m_items)
+            for (auto& [pos,item] : m_items)
             {
-                Data->push_back(itemPos);
+                Data->push_back(pos);
             }
             //check if this tree has children
             if (m_children)
@@ -114,7 +113,65 @@ namespace legion::rendering
             }
             return;
         }
+        //gets data of the tree starting at defined depth
+        void GetDataPair(int depth, std::vector <std::pair<math::vec3, ValueType>>* Data)
+        {
+            //get data for current tree depth
+            for (auto& item : m_items)
+            {
+                Data->push_back(item);
+            }
+            //check if this tree has children
+            if (m_children)
+            {
+                //if depth 0 has not been reached go deeper and decrease depth
+                if (depth > 0)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        m_children->at(i).GetDataPair(depth - 1, Data);
+                    }
+                }
+            }
+            return;
+        }
         //gets data from starting depth until end depth
+        void GetDataRangePair(int startingDepth, int endDepth, std::vector <std::pair<math::vec3, ValueType>>* Data)
+        {
+            //check if starting depth has been reached
+            if (startingDepth > 0)
+            {
+                //if there are children go deeper
+                if (m_children)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        m_children->at(i).GetDataRangePair(startingDepth - 1, endDepth - 1, Data);
+                    }
+                }
+            }
+            else
+            {
+                //only continue if end depth has not been reached
+                if (endDepth > 0)
+                {
+                    //start depth has been reached, end depth has not yet been reached, start getting data and go deeper
+                    for (auto& item : m_items)
+                    {
+                        Data->push_back(item);
+                    }
+                    //if there are children go deeper 
+                    if (m_children)
+                    {
+                        for (int i = 0; i < 8; i++)
+                        {
+                            m_children->at(i).GetDataRangePair(startingDepth, endDepth - 1, Data);
+                        }
+                    }
+                }
+            }
+        }
+
         void GetDataRange(int startingDepth, int endDepth, std::vector<math::vec3>* Data)
         {
             //check if starting depth has been reached

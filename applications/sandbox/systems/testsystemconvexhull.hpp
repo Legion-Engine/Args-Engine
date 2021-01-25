@@ -8,16 +8,16 @@
 
 #include <rendering/components/renderable.hpp>
 #include <physics/components/physics_component.hpp>
-
+#include <physics/components/fracturer.hpp>
 
 #include <rendering/components/particle_emitter.hpp>
-
+#include <physics/halfedgeedge.hpp>
 using namespace legion;
 
 struct convex_hull_step : public app::input_action<convex_hull_step> {};
 struct convex_hull_draw : public app::input_action<convex_hull_draw> {};
 struct convex_hull_info : public app::input_action<convex_hull_info> {};
-
+struct convex_hull_debug : public app::input_action<convex_hull_debug> {};
 struct convex_hull_iteration : public app::input_action<convex_hull_iteration> {};
 
 struct followerData
@@ -38,18 +38,19 @@ public:
 
     virtual void setup()
     {
-        app::InputSystem::createBinding<convex_hull_step>(app::inputmap::method::ENTER);
+        //app::InputSystem::createBinding<convex_hull_step>(app::inputmap::method::ENTER);
         app::InputSystem::createBinding<convex_hull_draw>(app::inputmap::method::M);
         app::InputSystem::createBinding<convex_hull_info>(app::inputmap::method::I);
         app::InputSystem::createBinding<convex_hull_iteration>(app::inputmap::method::NUM1);
-  
+        app::InputSystem::createBinding<convex_hull_debug>(app::inputmap::method::P);
 
         bindToEvent<convex_hull_step, &TestSystemConvexHull::convexHullStep>();
         bindToEvent<convex_hull_draw, &TestSystemConvexHull::convexHullDraw>();
         bindToEvent<convex_hull_info, &TestSystemConvexHull::convexHullInfo>();
         bindToEvent<convex_hull_iteration, &TestSystemConvexHull::convexHullIteration>();
+        bindToEvent< convex_hull_debug, &TestSystemConvexHull::drawConvexHull>();
 
-        createProcess<&TestSystemConvexHull::update>("Update");
+        createProcess<&TestSystemConvexHull::update>("Physics");
 
         rendering::model_handle cube;
         rendering::model_handle model;
@@ -62,99 +63,100 @@ public:
 
         app::window window = m_ecs->world.get_component_handle<app::window>().read();
         {
-            app::context_guard guard(window);
+        //    app::context_guard guard(window);
 
-            cube = rendering::ModelCache::create_model("cube", "assets://models/cube.obj"_view);
-            model = rendering::ModelCache::create_model("model", "assets://models/sphere.obj"_view);
-            wireFrameH = rendering::MaterialCache::create_material("wireframe", "assets://shaders/wireframe.shs"_view);
-            vertexColor = rendering::MaterialCache::create_material("vertexColor", "assets://shaders/vertexcolor.shs"_view);
+        //    cube = rendering::ModelCache::create_model("cube", "assets://models/cube.obj"_view);
+        //    model = rendering::ModelCache::create_model("model", "assets://models/sphere.obj"_view);
+        //    wireFrameH = rendering::MaterialCache::create_material("wireframe", "assets://shaders/wireframe.shs"_view);
+        //    vertexColor = rendering::MaterialCache::create_material("vertexColor", "assets://shaders/vertexcolor.shs"_view);
 
-            solidLegion = rendering::MaterialCache::create_material("texture", "assets://shaders/texture.shs"_view);
-            solidLegion.set_param("_texture", rendering::TextureCache::create_texture("assets://textures/split-test.png"_view));
+        //    solidLegion = rendering::MaterialCache::create_material("texture", "assets://shaders/texture.shs"_view);
+        //    solidLegion.set_param("_texture", rendering::TextureCache::create_texture("assets://textures/split-test.png"_view));
 
-            // Create physics entity
-            {
-                physicsEnt = createEntity();
-                physicsEnt.add_components<rendering::mesh_renderable>(mesh_filter(model.get_mesh()), rendering::mesh_renderer(wireFrameH));
-                physicsEnt.add_components<transform>(position(0.0f, 4, 0), rotation(), scale(1));
-                meshH = model.get_mesh();
+        //    // Create physics entity
+        //    {
+        //        physicsEnt = createEntity();
+        //        physicsEnt.add_components<rendering::mesh_renderable>(mesh_filter(model.get_mesh()), rendering::mesh_renderer(wireFrameH));
+        //        physicsEnt.add_components<transform>(position(0.0f, 4, 0), rotation(), scale(1));
+        //        meshH = model.get_mesh();
 
-                physicsEnt.add_component<physics::physicsComponent>();
-                auto rbH = physicsEnt.add_component<physics::rigidbody>();
-                auto rb = rbH.read();
-                rb.setMass(1.0f);
-                rbH.write(rb);
-            }
-            // Create physics entity
-           {
-                auto ent = createEntity();
-                ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
-                ent.add_components<transform>(position(0, 2.0f, 0), rotation(), scale(1));
-                auto pcH = ent.add_component<physics::physicsComponent>();
-                auto pc = pcH.read();
+        //        physicsEnt.add_component<physics::physicsComponent>();
+        //        auto rbH = physicsEnt.add_component<physics::rigidbody>();
+        //        auto rb = rbH.read();
+        //        rb.setMass(1.0f);
+        //        rbH.write(rb);
+        //    }
+        //    // Create physics entity
+        //   {
+        //        auto ent = createEntity();
+        //        ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
+        //        ent.add_components<transform>(position(0, 2.0f, 0), rotation(), scale(1));
+        //        auto pcH = ent.add_component<physics::physicsComponent>();
+        //        auto pc = pcH.read();
 
-                pc.AddBox(physics::cube_collider_params(1.0f, 1.0f, 1.0f));
-                pcH.write(pc);
-            }
+        //        pc.AddBox(physics::cube_collider_params(1.0f, 1.0f, 1.0f));
+        //        pcH.write(pc);
+        //    }
 
-            /*{
-                auto ent = createEntity();
-                ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
-                ent.add_components<transform>(position(7.0f, 2.0f, 0), rotation(), scale(1));
-                auto pcH = ent.add_component<physics::physicsComponent>();
-                auto pc = pcH.read();
+        //    /*{
+        //        auto ent = createEntity();
+        //        ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
+        //        ent.add_components<transform>(position(7.0f, 2.0f, 0), rotation(), scale(1));
+        //        auto pcH = ent.add_component<physics::physicsComponent>();
+        //        auto pc = pcH.read();
 
-                pc.AddBox(physics::cube_collider_params(2.0f, 2.0f, 2.0f));
-                pcH.write(pc);
-            }
+        //        pc.AddBox(physics::cube_collider_params(2.0f, 2.0f, 2.0f));
+        //        pcH.write(pc);
+        //    }
 
-            {
-                auto ent = createEntity();
-                ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
-                ent.add_components<transform>(position(7.0f, 6.0f, -1.35f), rotation(), scale(1));
-                ent.add_component<physics::rigidbody>();
+        //    {
+        //        auto ent = createEntity();
+        //        ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(solidLegion));
+        //        ent.add_components<transform>(position(7.0f, 6.0f, -1.35f), rotation(), scale(1));
+        //        ent.add_component<physics::rigidbody>();
 
-                auto pcH = ent.add_component<physics::physicsComponent>();
-                auto pc = pcH.read();
+        //        auto pcH = ent.add_component<physics::physicsComponent>();
+        //        auto pc = pcH.read();
 
-                auto rot = ent.get_component_handle<rotation>().read();
+        //        auto rot = ent.get_component_handle<rotation>().read();
 
-                rot *= math::angleAxis(math::deg2rad(60.0f), math::vec3(1, 0, 0));
-                rot *= math::angleAxis(math::deg2rad(-45.0f), math::vec3(0, 1, 0));
-                
+        //        rot *= math::angleAxis(math::deg2rad(60.0f), math::vec3(1, 0, 0));
+        //        rot *= math::angleAxis(math::deg2rad(-45.0f), math::vec3(0, 1, 0));
+        //        
 
-                ent.write_component(rot);
+        //        ent.write_component(rot);
 
-                pc.AddBox(physics::cube_collider_params(1.0f, 1.0f, 1.0f));
-                pcH.write(pc);
-            }*/
+        //        pc.AddBox(physics::cube_collider_params(1.0f, 1.0f, 1.0f));
+        //        pcH.write(pc);
+        //    }*/
 
-            // Create entity for reference
-            {
-                auto ent = createEntity();
-                ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(vertexColor));
-                ent.add_components<transform>(position(5.0f, 0, 0), rotation(), scale(1));
-            }
-            // Create entity for reference
-            {
-                auto ent = createEntity();
-                ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(wireFrameH));
-                ent.add_components<transform>(position(0, 0, -5.0f), rotation(), scale(1));
-            }
-            {
-                math::vec3 p = math::vec3(11, 4, 5);
-                std::vector<math::vec3> points{ math::vec3(0,0,0), math::vec3(2, 5, 5), math::vec3(12, 5, 5), math::vec3(10, 0, 0) };
-                math::mat4 planeMat = math::planeMatrix(points.at(0), points.at(1), points.at(3), math::vec3(0, 0, 0));
-                std::vector<math::vec3> newPoints{
-                    math::vec3(math::inverse(planeMat) * math::vec4(points.at(0),1)),
-                    math::vec3(math::inverse(planeMat) * math::vec4(points.at(1),1)),
-                    math::vec3(math::inverse(planeMat) * math::vec4(points.at(2),1)),
-                    math::vec3(math::inverse(planeMat) * math::vec4(points.at(3),1))
-                };
-                log::debug("mapped: {} {} {} {}", newPoints.at(0), newPoints.at(1), newPoints.at(2), newPoints.at(3));
-            }
+        //    // Create entity for reference
+        //    {
+        //        auto ent = createEntity();
+        //        ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(vertexColor));
+        //        ent.add_components<transform>(position(5.0f, 0, 0), rotation(), scale(1));
+        //    }
+        //    // Create entity for reference
+        //    {
+        //        auto ent = createEntity();
+        //        ent.add_components<rendering::mesh_renderable>(mesh_filter(cube.get_mesh()), rendering::mesh_renderer(wireFrameH));
+        //        ent.add_components<transform>(position(0, 0, -5.0f), rotation(), scale(1));
+        //    }
+        //    {
+        //        math::vec3 p = math::vec3(11, 4, 5);
+        //        std::vector<math::vec3> points{ math::vec3(0,0,0), math::vec3(2, 5, 5), math::vec3(12, 5, 5), math::vec3(10, 0, 0) };
+        //        math::mat4 planeMat = math::planeMatrix(points.at(0), points.at(1), points.at(3), math::vec3(0, 0, 0));
+        //        std::vector<math::vec3> newPoints{
+        //            math::vec3(math::inverse(planeMat) * math::vec4(points.at(0),1)),
+        //            math::vec3(math::inverse(planeMat) * math::vec4(points.at(1),1)),
+        //            math::vec3(math::inverse(planeMat) * math::vec4(points.at(2),1)),
+        //            math::vec3(math::inverse(planeMat) * math::vec4(points.at(3),1))
+        //        };
+        //        log::debug("mapped: {} {} {} {}", newPoints.at(0), newPoints.at(1), newPoints.at(2), newPoints.at(3));
+        //    }
         }
     }
+
     bool isUpdating = false;
     void update(time::span deltaTime)
     {
@@ -173,6 +175,55 @@ public:
                 ent.write_component<scale>(scaleH.read());
             }
         }
+    }
+    
+    int stepToSee = 0;
+    math::vec3 spacing = math::vec3(2.5f, 0, 0);
+    int indexToSee = 3;
+    void drawConvexHull(convex_hull_debug * action)
+    {
+        
+        //log::debug("drawConvexHull");
+        //log::debug("stepToSee {} ", stepToSee);
+        if (!action->value)
+        {
+            ecs::EntityQuery fractureQuery = createQuery<physics::Fracturer>();
+            fractureQuery.queryEntities();
+            for (auto ent : fractureQuery)
+            {
+                auto fracturer = ent.read_component<physics::Fracturer>();
+
+                //log::debug("fracturer.transforms {} ", fracturer.transforms.size());
+
+                for (size_t i = 0; i < fracturer.verticesList.size(); i++)
+                {
+                    if (i != indexToSee) { continue; }
+                    auto verticesToUse = fracturer.verticesList.at(i);
+
+                    for (auto& vertex : verticesToUse)
+                    {
+                        vertex += spacing * stepToSee;
+                        math::vec3 drawPos = math::vec3(fracturer.transforms.at(i)[3]) + vertex;
+                        debug::user_projectDrawLine(drawPos, drawPos + math::vec3(0, 0.2f, 0), math::colors::red, 12.0f, FLT_MAX);
+                    }
+
+                    std::shared_ptr<physics::ConvexCollider> newCollider = std::make_shared<physics::ConvexCollider>();
+                    newCollider->debug = false;
+                    newCollider->step = stepToSee;
+                    //log::debug("ConstructConvexHullWithVertices with step {}", newCollider->step);
+
+                    
+
+                   
+                    //vertexDrawCollider(verticesToUse, fracturer.transforms.at(i)[3]);
+                    newCollider->ConstructConvexHullWithVertices(verticesToUse, fracturer.transforms.at(i)[3]);
+                    newCollider->DrawColliderRepresentation(fracturer.transforms.at(i), math::colors::green, 5.0f, FLT_MAX);
+                }
+            }
+            stepToSee++;
+        }
+       
+
     }
 
     void drawPhysicsColliders()
@@ -214,22 +265,25 @@ public:
                 math::compose(localTransform, scale, rot, pos);
 
                 auto physicsComponent = physicsComponentHandle.read();
+                if (!physicsComponent.colliders) { continue; }
 
                 for (auto physCollider : *physicsComponent.colliders)
                 {
                     //--------------------------------- Draw Collider Outlines ---------------------------------------------//
                     if (!physCollider->shouldBeDrawn) { continue; }
-
+                    //math::vec3 colliderCentroid = pos + math::vec3(localTransform * math::vec4(physCollider->GetLocalCentroid(), 0));
+                    //debug::user_projectDrawLine(colliderCentroid, colliderCentroid + math::vec3(0.0f,0.2f,0.0f), math::colors::cyan, 6.0f,0.0f,true);
+                    
                     for (auto face : physCollider->GetHalfEdgeFaces())
                     {
                         //face->forEachEdge(drawFunc);
                         physics::HalfEdgeEdge* initialEdge = face->startEdge;
                         physics::HalfEdgeEdge* currentEdge = face->startEdge;
-
+                        math::vec3 worldNormal = (localTransform * math::vec4(face->normal, 0));
                         math::vec3 faceStart = localTransform * math::vec4(face->centroid, 1);
-                        math::vec3 faceEnd = faceStart + math::vec3((localTransform * math::vec4(face->normal, 0))) * 0.1f;
+                        math::vec3 faceEnd = faceStart + worldNormal * 0.1f;
                         
-                        debug::user_projectDrawLine(faceStart, faceEnd, math::colors::green, 2.0f);
+                        //debug::user_projectDrawLine(faceStart, faceEnd, math::colors::green, 5.0f);
 
                         if (!currentEdge) { return; }
 
@@ -241,7 +295,7 @@ public:
                             math::vec3 worldStart = localTransform * math::vec4(edgeToExecuteOn->edgePosition, 1);
                             math::vec3 worldEnd = localTransform * math::vec4(edgeToExecuteOn->nextEdge->edgePosition, 1);
 
-                            debug::user_projectDrawLine(worldStart, worldEnd, usedColor, 2.0f, 0.0f, useDepth);
+                            debug::user_projectDrawLine(worldStart + worldNormal * 0.005f, worldEnd + worldNormal * 0.005f, usedColor, 3.0f, 0.0f, useDepth);
 
                         } while (initialEdge != currentEdge && currentEdge != nullptr);
                     }
@@ -258,26 +312,12 @@ public:
 
         if (action->value)
         {
-            for (auto ent : followerObjects)
-            {
-                m_ecs->destroyEntity(ent);
-            }
-            followerObjects.clear();
+      
             
             auto pc = physicsEnt.read_component<physics::physicsComponent>();
-            
-            if (collider == nullptr)
-            {
-                collider = pc.ConstructConvexHull(meshH);
-                PopulateFollowerList();
-            }
-            else
-            {
-                collider->shouldBeDrawn = false;
-                pc.ConstructConvexHull(meshH, *collider);
-                collider->shouldBeDrawn = true;
-                PopulateFollowerList();
-            }
+
+            meshDrawCollider(pc);
+
             physicsEnt.write_component(pc);
 
             ++pStep;
@@ -286,7 +326,43 @@ public:
         isUpdating = false;
     }
 
-   
+    void meshDrawCollider(physics::physicsComponent& comp)
+    {
+        for (auto ent : followerObjects)
+        {
+            m_ecs->destroyEntity(ent);
+        }
+        followerObjects.clear();
+
+        if (collider == nullptr)
+        {
+            collider = comp.ConstructConvexHull(meshH);
+            PopulateFollowerList();
+        }
+        else
+        {
+            collider->shouldBeDrawn = false;
+            comp.ConstructConvexHull(meshH, *collider);
+            collider->shouldBeDrawn = true;
+            PopulateFollowerList();
+        }
+    }
+
+    void vertexDrawCollider(std::vector<math::vec3> vertices,math::vec3 spacing = math::vec3())
+    {
+        for (auto ent : followerObjects)
+        {
+            m_ecs->destroyEntity(ent);
+        }
+        followerObjects.clear();
+
+        collider->shouldBeDrawn = false;
+        collider->ConstructConvexHullWithVertices(vertices, spacing);
+        collider->shouldBeDrawn = true;
+        PopulateFollowerList();
+        collider->step++;
+
+    }
 
     void PopulateFollowerList()
     {
@@ -377,7 +453,7 @@ public:
 
     void convexHullDraw(convex_hull_draw* action)
     {
-        log::debug("convexHullDraw(convex_hull_draw* action) ");
+        //log::debug("convexHullDraw(convex_hull_draw* action) ");
         debug::user_projectdebug_line(math::vec3(0, 0, 0), math::vec3(0, 1, 0), math::colors::magenta, 5.0f,20.0f);
         if (action->value)
         {

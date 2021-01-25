@@ -32,7 +32,11 @@ vec2 ParallaxMap(sampler2D normalHeightMap, float scale, vec2 uv, Camera camera,
 
 	vec2 currentUV = uv;
 	vec2 prevUV = currentUV;
+#if defined(HEIGHT_MAP_R)
+	float currentDepthMapValue = max(texture(normalHeightMap, currentUV).r, epsilon);
+#else
 	float currentDepthMapValue = max(texture(normalHeightMap, currentUV).a, epsilon);
+#endif
 	height = currentDepthMapValue;
 	float prevDepthMapValue = currentDepthMapValue;
 
@@ -42,7 +46,11 @@ vec2 ParallaxMap(sampler2D normalHeightMap, float scale, vec2 uv, Camera camera,
 		currentUV -= deltaUV;
 
 		prevDepthMapValue = currentDepthMapValue;
-		currentDepthMapValue = max(texture(normalHeightMap, currentUV).a, epsilon);
+#if defined(HEIGHT_MAP_R)
+		float currentDepthMapValue = max(texture(normalHeightMap, currentUV).r, epsilon);
+#else
+		float currentDepthMapValue = max(texture(normalHeightMap, currentUV).a, epsilon);
+#endif
 
 		prevLayerDepth = currentLayerDepth;
 		currentLayerDepth += layerDepth;
