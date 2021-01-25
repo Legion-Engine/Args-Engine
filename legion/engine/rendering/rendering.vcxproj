@@ -40,6 +40,7 @@
     <ClCompile Include="pipeline\default\defaultpipeline.cpp" />
     <ClCompile Include="pipeline\default\postfx\bloom.cpp" />
     <ClCompile Include="pipeline\default\postfx\fxaa.cpp" />
+    <ClCompile Include="pipeline\default\postfx\lensflare.cpp" />
     <ClCompile Include="pipeline\default\postfx\tonemapping.cpp" />
     <ClCompile Include="pipeline\default\stages\clearstage.cpp" />
     <ClCompile Include="pipeline\default\stages\debugrenderstage.cpp" />
@@ -71,6 +72,7 @@
     <ClInclude Include="pipeline\base\pipeline.hpp" />
     <ClInclude Include="pipeline\default\postfx\fxaa.hpp" />
     <ClInclude Include="pipeline\default\postfx\bloom.hpp" />
+    <ClInclude Include="pipeline\default\postfx\lensflare.hpp" />
     <ClInclude Include="pipeline\default\postfx\tonemapping.hpp" />
     <ClInclude Include="pipeline\default\stages\debugrenderstage.hpp" />
     <ClInclude Include="pipeline\default\stages\postprocessingstage.hpp" />
