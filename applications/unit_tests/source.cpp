@@ -26,8 +26,9 @@ public:
     class ExitHelper : public System<ExitHelper>
     {
     public:
-        void setup() override
+        void setup()
         {
+            std::cout << "Hi!\n";
             //raiseEvent<events::exit>();
         }
     };
@@ -40,7 +41,7 @@ void LEGION_CCONV reportModules(Engine* engine)
 
     [[maybe_unused]] const int res = ctx.run();
 
-     if(ctx.shouldExit())
+     //if(ctx.shouldExit())
         engine->reportModule<Exitus>();
         //std::exit(res);
 

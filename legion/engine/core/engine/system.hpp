@@ -5,6 +5,7 @@
 #include <core/events/eventbus.hpp>
 #include <core/time/time.hpp>
 #include <core/ecs/registry.hpp>
+#include <core/common/hash.hpp>
 
 namespace legion::core
 {
@@ -12,20 +13,19 @@ namespace legion::core
     {
         friend class Engine;
     public:
-        const id_type id;
+        const type_reference id;
         const std::string name;
 
-        SystemBase(id_type id, const std::string& name) : id(id), name(name) {}
-
-        virtual void setup() LEGION_PURE;
-
-        virtual ~SystemBase() = default;
+    protected:
+        SystemBase(type_reference&& id, const std::string& name) : id(id), name(name) {}
     };
 
     template<typename SelfType>
     class System : public SystemBase
     {
     public:
-        System() : SystemBase(typeHash<SelfType>(), nameOfType<SelfType>()) {}
+        System() : SystemBase(make_hash<SelfType>(), nameOfType<SelfType>()) {}
+
+
     };
 }

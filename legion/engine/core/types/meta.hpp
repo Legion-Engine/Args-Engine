@@ -6,9 +6,39 @@
 #include <array>
 #include <queue>
 #include <type_traits>
+#include <core/platform/platform.hpp>
 
 namespace legion::core
 {
+#define HAS_FUNC(x)                                                                                                     \
+    template<typename, typename T>                                                                                      \
+    struct CONCAT(has_, x) {                                                                                            \
+        static_assert(std::integral_constant<T, false>::value, "Second template param needs to be of function type.");  \
+    };                                                                                                                  \
+                                                                                                                        \
+    template<typename C, typename Ret, typename... Args>                                                                \
+    struct CONCAT(has_, x)<C, Ret(Args...)> {                                                                           \
+    private:                                                                                                            \
+        template<typename T>                                                                                            \
+        static constexpr auto check(T*)                                                                                 \
+            -> typename std::is_same<decltype(std::declval<T>(). x (std::declval<Args>()...)), Ret>::type;              \
+                                                                                                                        \
+        template <typename>                                                                                             \
+        static constexpr auto check(...)                                                                                \
+            ->std::false_type;                                                                                          \
+                                                                                                                        \
+        typedef decltype(check<C>(nullptr)) type;                                                                       \
+    public:                                                                                                             \
+        static constexpr bool value = type::value;                                                                      \
+    };                                                                                                                  \
+                                                                                                                        \
+    template<typename C, typename F>                                                                                    \
+    constexpr bool CONCAT_DEFINE(has_, CONCAT(x, _v)) = CONCAT(has_, x)<C, F>::value;
+
+
+    HAS_FUNC(setup);
+    HAS_FUNC(update);
+
     template<typename derived_type, typename base_type>
     using inherits_from = typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type;
 
@@ -45,6 +75,10 @@ namespace legion::core
     public:
         static constexpr bool value = type::value;
     };
+
+    template <typename C, typename F>
+    constexpr bool has_resize_v = has_resize<C, F>::value;
+
 
     template <class T>
     struct is_vector

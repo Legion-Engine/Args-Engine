@@ -1,5 +1,6 @@
 #pragma once
 #include <core/types/primitives.hpp>
+#include <core/types/meta.hpp>
 #include <core/platform/platform.hpp>
 #include <core/engine/system.hpp>
 #include <core/containers/sparse_map.hpp>
@@ -21,12 +22,18 @@ namespace legion::core
     {
         friend class Engine;
     private:
+        multicast_delegate<void()> m_setupFuncs;
+        std::vector<delegate<void(time::span)>> m_updateFuncs;
+
         sparse_map<id_type, std::unique_ptr<SystemBase>> m_systems;
 
         void init()
         {
-            for (auto [_, system] : m_systems)
-                system->setup();
+            m_setupFuncs.invoke();
+            for (auto& updateFunc : m_updateFuncs)
+            {
+                // Create update process.
+            }
         };
 
     protected:
@@ -39,14 +46,15 @@ namespace legion::core
         template<typename SystemType, typename... Args CNDOXY(inherits_from<SystemType, System<SystemType>> = 0)>
         void reportSystem(Args&&... args)
         {
-            OPTICK_EVENT();
-            m_systems.insert(typeHash<SystemType>(), std::make_unique<SystemType>(std::forward<Args>(args)...));
-        }
-
-        template<typename component_type>
-        void reportComponentType()
-        {
-            //m_ecs->reportComponentType<component_type>();
+            m_systems.insert(make_hash<SystemType>(), std::make_unique<SystemType>(std::forward<Args>(args)...));
+            if constexpr (has_setup_v<SystemType, void()>)
+            {
+                m_setupFuncs += delegate<void()>::create<SystemType, &SystemType::setup>(static_cast<SystemType*>(m_systems.at(make_hash<SystemType>()).get()));
+            }
+            if constexpr (has_update_v<SystemType, void(time::span)>)
+            {
+                m_updateFuncs.push_back(delegate<void()>::create<SystemType, &SystemType::setup>(static_cast<SystemType*>(m_systems.at(make_hash<SystemType>()).get())));
+            }
         }
 
     public:
