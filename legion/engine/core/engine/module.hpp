@@ -1,12 +1,15 @@
 #pragma once
+#include <memory>
+#include <type_traits>
+
 #include <core/types/primitives.hpp>
 #include <core/types/meta.hpp>
 #include <core/platform/platform.hpp>
-#include <core/engine/system.hpp>
 #include <core/containers/sparse_map.hpp>
 #include <core/ecs/registry.hpp>
 #include <core/events/eventbus.hpp>
-#include <memory>
+
+#include <core/engine/system.hpp>
 
 /**
  * @file module.hpp
@@ -55,6 +58,12 @@ namespace legion::core
             {
                 m_updateFuncs.push_back(delegate<void()>::create<SystemType, &SystemType::setup>(static_cast<SystemType*>(m_systems.at(make_hash<SystemType>()).get())));
             }
+        }
+
+        template<typename component_type, typename... Args>
+        void registerComponentType(Args&&... args)
+        {
+            ecs::Registry::registerComponentType<component_type>(std::forward<Args>(args)...);
         }
 
     public:
